@@ -3,15 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Predictive cortical hierarchy &amp; 5-HT2A</title>
+<title>REBUS &mdash; 5-HT2A and the precision of descending predictions</title>
 <style>
   :root{
     color-scheme:dark;
     --bg:#0f1116; --panel:#161922; --edge:#252a36; --fg:#e8ebf2; --dim:#98a0b0;
     --faint:#69707e; --scaffold:210,216,228; --scaffold-a:0.11; --shadow:rgba(0,0,0,.45);
-    --badge-measured-bg:#11321f; --badge-measured-fg:#63d18f;
-    --badge-derived-bg:#2c2711;  --badge-derived-fg:#d8bb52;
-    --badge-assumed-bg:#33161c;  --badge-assumed-fg:#f0788e;
     --warn-bg:#33161c; --warn-fg:#f0788e; --focus:#f0a06e;
   }
   /* Dark-first: the bare :root IS the dark palette. The light palette is
@@ -23,9 +20,6 @@
     color-scheme:light;
     --bg:#f6f7f9; --panel:#ffffff; --edge:#dfe3ea; --fg:#171b23; --dim:#5c6472;
     --faint:#8a92a1; --scaffold:40,46,58; --scaffold-a:0.10; --shadow:rgba(20,25,35,.10);
-    --badge-measured-bg:#e2f4e9; --badge-measured-fg:#1d6b3d;
-    --badge-derived-bg:#faf1d6;  --badge-derived-fg:#7a5f10;
-    --badge-assumed-bg:#fbe3e7;  --badge-assumed-fg:#98203a;
     --warn-bg:#fbe3e7; --warn-fg:#98203a; --focus:#b8451a;
     }
   }
@@ -33,10 +27,16 @@
     color-scheme:light;
     --bg:#f6f7f9; --panel:#ffffff; --edge:#dfe3ea; --fg:#171b23; --dim:#5c6472;
     --faint:#8a92a1; --scaffold:40,46,58; --scaffold-a:0.10; --shadow:rgba(20,25,35,.10);
-    --badge-measured-bg:#e2f4e9; --badge-measured-fg:#1d6b3d;
-    --badge-derived-bg:#faf1d6;  --badge-derived-fg:#7a5f10;
-    --badge-assumed-bg:#fbe3e7;  --badge-assumed-fg:#98203a;
     --warn-bg:#fbe3e7; --warn-fg:#98203a; --focus:#b8451a;
+  }
+  /* Presentation mode. Light, high contrast, bigger type, no chrome that a
+     room full of people cannot read. Forced light is deliberate: a projector
+     in a lit room loses a dark page entirely. */
+  :root[data-pres="1"]{
+    color-scheme:light;
+    --bg:#ffffff; --panel:#ffffff; --edge:#c7cdd8; --fg:#0b0e14;
+    --dim:#3d454f; --faint:#5e6874; --scaffold:20,26,38; --scaffold-a:0.16;
+    --shadow:rgba(20,25,35,.08); --warn-bg:#fbe3e7; --warn-fg:#8d1c33; --focus:#a83c12;
   }
   *{box-sizing:border-box}
   :where(button,select,input,a):focus-visible{
@@ -48,12 +48,14 @@
     font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
     -webkit-font-smoothing:antialiased; overflow:hidden;
   }
-  #app{display:flex; flex-direction:column; height:100vh; padding:14px 18px 12px; gap:12px}
+  #app{display:flex; flex-direction:column; height:100vh; padding:12px 16px 10px; gap:10px}
 
-  header{display:flex; align-items:baseline; gap:16px; flex:0 0 auto}
+  header{display:flex; align-items:baseline; gap:14px; flex:0 0 auto}
   header h1{font-size:16px; font-weight:600; margin:0; letter-spacing:.2px; text-wrap:balance}
   header .sub{font-size:12.5px; color:var(--dim)}
   header .spacer{flex:1}
+  :root[data-pres="1"] header h1{font-size:21px}
+  :root[data-pres="1"] header .sub{font-size:14px}
   .ghost{
     background:transparent; color:var(--dim); border:1px solid var(--edge);
     border-radius:7px; padding:5px 11px; font:inherit; font-size:12.5px; cursor:pointer;
@@ -66,24 +68,32 @@
   }
   #warn.on{display:inline-block}
 
-  .panels{display:flex; gap:16px; flex:1 1 auto; min-height:0}
+  .panels{display:flex; gap:12px; flex:1 1 auto; min-height:0}
   .panel{background:var(--panel); border:1px solid var(--edge); border-radius:12px;
          box-shadow:0 1px 3px var(--shadow); display:flex; flex-direction:column; min-height:0}
-  .panelA{flex:1 1 58%; min-width:0}
-  .panelB{flex:1 1 42%; min-width:0}
-  .phead{display:flex; align-items:center; gap:10px; padding:11px 15px 9px; border-bottom:1px solid var(--edge); flex:0 0 auto}
+  .panelA{flex:1 1 60%; min-width:0}
+  .colR{flex:1 1 40%; min-width:0; display:flex; flex-direction:column; gap:12px}
+  .panelB{flex:1 1 46%; min-height:0}
+  .panelC{flex:1 1 54%; min-height:0}
+  .phead{display:flex; align-items:center; gap:9px; padding:9px 14px 8px;
+         border-bottom:1px solid var(--edge); flex:0 0 auto}
   .ptag{font-size:11px; font-weight:700; letter-spacing:.10em; color:var(--faint)}
   .ptitle{font-size:13px; font-weight:600}
+  :root[data-pres="1"] .ptitle{font-size:15px}
+  :root[data-pres="1"] .ptag{font-size:12px}
   .phead .spacer{flex:1}
 
-  .cvwrap{position:relative; flex:1 1 auto; min-height:0; padding:6px 10px 0; display:flex}
+  .cvwrap{position:relative; flex:1 1 auto; min-height:0; padding:5px 9px 0; display:flex}
   canvas{width:100%; height:100%; display:block; touch-action:manipulation}
 
-  .controls{flex:0 0 auto; padding:8px 15px 13px; display:flex; flex-direction:column; gap:9px}
+  .controls{flex:0 0 auto; padding:7px 14px 11px; display:flex; flex-direction:column; gap:8px}
   .row{display:flex; align-items:center; gap:11px}
   .row label{font-size:12px; color:var(--dim); white-space:nowrap}
+  :root[data-pres="1"] .row label{font-size:15px; font-weight:600}
   input[type=range]{flex:1; accent-color:#eb6834; height:20px}
+  :root[data-pres="1"] input[type=range]{height:30px}
   .val{font-variant-numeric:tabular-nums; font-size:13px; font-weight:600; min-width:42px; text-align:right}
+  :root[data-pres="1"] .val{font-size:19px; min-width:54px}
   .chips{display:flex; gap:6px; flex-wrap:wrap; align-items:center}
   .chip{
     display:inline-flex; align-items:center; gap:6px; border:1px solid var(--edge);
@@ -95,67 +105,74 @@
   .sep{width:1px; height:17px; background:var(--edge); margin:0 2px}
   .hint{font-size:11.5px; color:var(--faint)}
   .phead .hint{text-align:right; line-height:1.4; font-variant-numeric:tabular-nums}
-  .phead .hint b{color:var(--warn-fg); font-weight:700}
   .hint b{color:var(--dim); font-weight:600}
+  /* Presentation mode hides the workshop: layer toggles, node count, the
+     frame-time HUD and the long input notes. The slider, both diagrams, the
+     four-number row and the dynamics sentence all stay. */
+  :root[data-pres="1"] .hide-pres{display:none !important}
 
-  .brainwrap{position:relative; flex:0 0 auto; margin:6px 12px 0; aspect-ratio:1447/1000}
+  .brainwrap{position:relative; flex:1 1 auto; min-height:0; margin:5px 11px 0;
+             aspect-ratio:1447/1000}
   .brainwrap img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain;
                  transition:opacity .16s ease; pointer-events:none}
   .brainwrap img.ov{opacity:0}
   .brainwrap canvas{position:absolute; inset:0; width:100%; height:100%;
                     pointer-events:none; opacity:0; transition:opacity .12s ease}
   .brainwrap canvas.on{opacity:1}
-  .blabel{flex:0 0 auto; padding:6px 15px 2px; font-size:12px; color:var(--dim)}
+  .blabel{flex:0 0 auto; padding:5px 14px 2px; font-size:11.5px; color:var(--dim)}
   .blabel b{color:var(--fg); font-weight:600}
 
-  .sources{flex:1 1 auto; min-height:0; overflow:auto; margin:8px 4px 10px 4px; padding:0 11px}
-  .sources h3{font-size:11px; letter-spacing:.10em; color:var(--faint); margin:4px 0 8px; font-weight:700}
-  .tier{font-size:10.5px; letter-spacing:.10em; font-weight:700; margin:13px 0 5px; padding-top:9px;
-        border-top:1px solid var(--edge)}
-  .tier:first-of-type{margin-top:2px; border-top:none; padding-top:0}
-  .t-measured{color:var(--badge-measured-fg)}
-  .t-derived{color:var(--badge-derived-fg)}
-  .t-assumed{color:var(--badge-assumed-fg)}
-  .src{display:grid; grid-template-columns:88px 1fr; gap:9px; padding:7px 0; border-top:1px solid var(--edge)}
-  .src:first-of-type{border-top:none}
-  .badge{font-size:9.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-         padding:2px 6px; border-radius:4px; height:fit-content; text-align:center}
-  .b-measured{background:var(--badge-measured-bg); color:var(--badge-measured-fg)}
-  .b-derived{background:var(--badge-derived-bg); color:var(--badge-derived-fg)}
-  .b-assumed{background:var(--badge-assumed-bg); color:var(--badge-assumed-fg)}
-  .src .k{font-size:12px; font-weight:600}
-  .src .d{font-size:11.5px; color:var(--dim); line-height:1.45}
-  .eq{display:block; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px;
-      color:var(--fg); background:rgba(128,128,128,.13); border-radius:4px;
-      padding:5px 7px; margin:5px 0; white-space:pre-wrap; line-height:1.5}
+  /* Labelling. Two parts, not three tiers: what went in, and what the figure
+     does with it. The dynamics sentence is also painted onto the Panel A
+     canvas, so it survives being cropped out of this page. */
+  .label2{flex:0 0 auto; margin:6px 4px 9px; padding:0 11px; min-height:0; overflow:auto}
+  .label2 h3{font-size:10.5px; letter-spacing:.10em; color:var(--faint);
+             margin:6px 0 6px; font-weight:700}
+  .inp{display:grid; grid-template-columns:96px 1fr; gap:8px; padding:4px 0;
+       border-top:1px solid var(--edge); font-size:11.5px}
+  .inp:first-of-type{border-top:none}
+  .inp .k{font-weight:700; color:var(--fg)}
+  .inp .s{color:var(--dim); line-height:1.4}
+  .inp .s em{color:var(--faint); font-style:normal}
+  .dyn{
+    border:1px solid var(--edge); border-left:3px solid var(--focus);
+    border-radius:0 8px 8px 0; padding:7px 11px; margin:9px 0 2px;
+    font-size:11.5px; line-height:1.5; color:var(--dim);
+  }
+  .dyn b{color:var(--fg); font-weight:700}
+  :root[data-pres="1"] .dyn{font-size:13.5px}
+  :root[data-pres="1"] .inp{font-size:13px; grid-template-columns:104px 1fr}
 
-  /* Phones and narrow windows. Panel A is drawn at a fixed 800x600 logical
-     size, so shrinking it to a phone's width would render 10px type at 5px.
-     Instead the canvas keeps a usable width and its container pans. */
-  @media (max-width:900px){
+  /* Phones and narrow windows. Panel A is drawn at a fixed logical size, so
+     shrinking it to a phone's width would render 10px type at 5px. Instead the
+     canvas keeps a usable width and its container pans. */
+  @media (max-width:980px){
     body{overflow:auto}
     #app{height:auto; min-height:100vh; padding:10px 10px 16px}
     header{flex-wrap:wrap; gap:8px 12px}
     header h1{font-size:15px; width:100%}
     .panels{flex-direction:column; gap:12px}
-    .panelA,.panelB{flex:0 0 auto}
+    .panelA,.colR,.panelB,.panelC{flex:0 0 auto}
     .cvwrap{flex:0 0 auto; overflow-x:auto; overflow-y:hidden;
             -webkit-overflow-scrolling:touch; padding:6px 8px 2px}
-    .cvwrap canvas{width:720px; min-width:720px; height:540px}
+    /* Both canvases are drawn at a fixed logical size, so shrinking them to a
+       phone's width would render 9px type at 4px. They keep a usable width
+       and their container pans instead. Keep these in step with CW/CH and
+       LW/LH -- a mismatch silently crops the readout column. */
+    .panelA .cvwrap canvas{width:884px; min-width:884px; height:570px}
+    .panelB .cvwrap canvas{width:620px; min-width:620px; height:300px}
+    .phead{flex-wrap:wrap}
+    #perf{display:none}
     .controls{padding-bottom:10px}
-    .row label{font-size:11.5px}
-    .sources{flex:0 0 auto; max-height:none; overflow:visible}
+    .label2{flex:0 0 auto; max-height:none; overflow:visible}
     .brainwrap{margin:6px 10px 0}
-  }
-  @media (max-width:900px) and (orientation:landscape){
-    .cvwrap canvas{width:860px; min-width:860px; height:645px}
   }
 
   #tip{
     position:fixed; pointer-events:none; opacity:0; transition:opacity .09s;
     background:var(--panel); border:1px solid var(--edge); border-radius:8px;
     padding:8px 10px; font-size:11.5px; box-shadow:0 4px 16px var(--shadow);
-    z-index:50; max-width:280px; line-height:1.5;
+    z-index:50; max-width:290px; line-height:1.5;
   }
   #tip .t{font-weight:700; font-size:12.5px; margin-bottom:3px}
   #tip .g{display:grid; grid-template-columns:auto 1fr; gap:1px 9px; color:var(--dim)}
@@ -169,11 +186,13 @@
 <body>
 <div id="app">
   <header>
-    <h1>The cortical hierarchy as a predictive model</h1>
+    <h1>Relaxed priors: how 5-HT2A density sets where the cortical model loses its grip</h1>
     <span class="sub" id="subtitle">HCP-MMP 360 &middot; Mesulam type &middot; Beliveau [<sup>11</sup>C]Cimbi-36</span>
     <span id="warn"></span>
     <span class="spacer"></span>
     <button class="ghost" id="sweep">Sweep &#9654;</button>
+    <button class="ghost" id="trip" aria-pressed="false">Freeze-frame</button>
+    <button class="ghost" id="pres" aria-pressed="false">Present</button>
     <button class="ghost" id="motion" aria-pressed="true">Motion</button>
     <button class="ghost" id="theme">Light</button>
   </header>
@@ -182,52 +201,64 @@
     <section class="panel panelA">
       <div class="phead">
         <span class="ptag">PANEL A</span>
-        <span class="ptitle">Directed hierarchy &mdash; predictions travel out, errors travel in</span>
+        <span class="ptitle">Cortex as a directed hierarchy &mdash; predictions fan outward</span>
         <span class="spacer"></span>
-        <span class="hint" id="perf"></span>
+        <span class="hint hide-pres" id="perf"></span>
       </div>
       <div class="cvwrap"><canvas id="cv"></canvas></div>
       <div class="controls">
         <div class="row">
-          <label for="prec">precision &pi;</label>
+          <label for="prec">prior precision &pi;</label>
           <input type="range" id="prec" min="0" max="100" value="100" step="1">
           <span class="val" id="precv">100</span>
         </div>
-        <div class="row">
+        <div class="row hide-pres">
           <div class="chips" id="ringchips"></div>
           <span class="sep"></span>
           <div class="chips">
             <button class="chip on" id="cPred" aria-pressed="true">predictions</button>
-            <button class="chip on" id="cErr"  aria-pressed="true">errors</button>
+            <button class="chip on" id="cErr"  aria-pressed="true">error return</button>
             <button class="chip"    id="cInv"  aria-pressed="false">hide level inversions</button>
-            <button class="chip on" id="cHalo" aria-pressed="true">prior halos</button>
-            <button class="chip"    id="cField" aria-pressed="false">receptor field</button>
-            <button class="chip"    id="cBars"  aria-pressed="false">disruption bars</button>
+            <button class="chip on" id="cCollar" aria-pressed="true">receptor collar</button>
             <select class="chip" id="ncount" style="padding:4px 8px"></select>
           </div>
         </div>
-        <div class="hint" id="hint1"><b>Click any outer-ring (idiotypic) node</b> to inject one prediction error and watch it climb.
-          &larr; &rarr; move the slider (shift = larger steps). Hover a ring, or a ring chip, to light it up on the brain.</div>
+        <div class="hint" id="hint1"><b>Click any outer-ring node</b> to inject one prediction
+          error and watch the cascade; then move the slider and it re-traces live.
+          &larr; &rarr; move the slider (shift = larger steps) &middot; space pauses &middot;
+          esc clears.</div>
       </div>
     </section>
 
-    <section class="panel panelB">
-      <div class="phead">
-        <span class="ptag">PANEL B</span>
-        <span class="ptitle">Where this is in the brain</span>
-        <span class="spacer"></span>
-        <div class="chips" id="bmodes"></div>
-      </div>
-      <div class="brainwrap" id="brainwrap">
-        <img id="bBase" alt="Cortex coloured by Mesulam cortical type, the same four colours Panel A uses">
-        <img class="ov" id="bR0" alt=""><img class="ov" id="bR1" alt="">
-        <img class="ov" id="bR2" alt=""><img class="ov" id="bR3" alt="">
-        <img class="ov" id="bRho" alt="Cortex coloured by 5-HT2A receptor density">
-        <canvas id="bPick"></canvas>
-      </div>
-      <div class="blabel" id="blabel"></div>
-      <div class="sources" id="sources"></div>
-    </section>
+    <div class="colR">
+      <section class="panel panelB">
+        <div class="phead">
+          <span class="ptag">PANEL B</span>
+          <span class="ptitle">The same parcels as a lattice &mdash; where activity stops being local</span>
+          <span class="spacer"></span>
+          <span class="hint" id="latstat"></span>
+        </div>
+        <div class="cvwrap"><canvas id="lat"></canvas></div>
+      </section>
+
+      <section class="panel panelC">
+        <div class="phead">
+          <span class="ptag">PANEL C</span>
+          <span class="ptitle">Where this is in the brain</span>
+          <span class="spacer"></span>
+          <div class="chips" id="bmodes"></div>
+        </div>
+        <div class="brainwrap" id="brainwrap">
+          <img id="bBase" alt="Cortex coloured by Mesulam cortical type, the same four colours Panel A uses">
+          <img class="ov" id="bR0" alt=""><img class="ov" id="bR1" alt="">
+          <img class="ov" id="bR2" alt=""><img class="ov" id="bR3" alt="">
+          <img class="ov" id="bRho" alt="Cortex coloured by 5-HT2A receptor density">
+          <canvas id="bPick"></canvas>
+        </div>
+        <div class="blabel" id="blabel"></div>
+        <div class="label2" id="label2"></div>
+      </section>
+    </div>
   </div>
 </div>
 <div id="tip"></div>
@@ -247,19 +278,43 @@ const PAL = D.palette, PARCELS = D.parcels;
 
 /* ======================================================================== *
  *  MODEL PARAMETERS.
- *  Every one of these is an assumption. They live here, once, and the
- *  honesty ledger prints them straight out of this object -- so the panel
- *  cannot drift away from the arithmetic the figure actually runs.
+ *
+ *  This is a teaching illustration, not a simulation. Every constant below
+ *  was hand-picked so that sweeping the slider shows the transition the
+ *  mechanism claims; none of them was fitted to anything. They live here,
+ *  once, and the labelling block prints the equations straight out of this
+ *  object, so the figure cannot drift away from its own arithmetic.
  * ======================================================================== */
 const P = {
-  THETA:    0.35,   // an ascending error is "explained away" below this magnitude
-  E_INJECT: 1.00,   // magnitude of a single clicked injection, at the ring-0 node's output
-  PI_FLOOR: 0.02,   // floor on pi_i when turning precision into a prior width
-  PI_CULL:  0.05,   // prediction edges below this precision weight are not drawn
-  E_CULL:   0.03,   // error edges below this magnitude are not drawn
-  HOP_MS:   520,    // one ring-to-ring hop of the injected error
-  DWELL_MS: 950,    // how long the death marker is held
-  FADE_MS:  700
+  // --- descending output distribution ------------------------------------
+  K0:     2.5,    // targets a node already has at pi = 100. A cortical area's
+                  // descending projection does not go to exactly one place, and
+                  // starting at one makes the very first slider step halve the
+                  // concentration and spend the whole readout in one nudge.
+  GAMMA:  1.35,   // drug strength enters as (1 - pi)^GAMMA
+  KGAIN:  12,     // extra targets a node recruits at full relaxation
+  TMAX:   16,     // hard cap on a node's candidate target list
+  DECAY:  0.93,   // rank decay of raw target weight: w_j proportional to DECAY^j
+  WGAIN:  0.60,   // total outgoing drive RISES by this fraction at full relaxation
+  // --- cascade -----------------------------------------------------------
+  CGAIN:  2.40,   // cascade gain per hop, multiplied by (1 - precision index)
+  CTHETA: 0.20,   // an ascending error below this is explained away
+  CSHARE: 0.45,   // exponent on the per-target weight share
+  BMAX:   3,      // most children one node contributes to the next generation
+  GMAX:   6,      // most generations drawn
+  NMAX:   48,     // most nodes in one cascade
+  TRIP:   [85, 55, 15],   // the three precisions the freeze-frame compares
+  GEN_MS: 620,    // one generation, including the beat between them
+  HOLD_MS:1500,   // how long the finished cascade is held before it fades
+  FADE_MS:600,
+  // --- Panel B lattice ---------------------------------------------------
+  COLS:   36,     // lattice columns; rows are the four Mesulam levels
+  SEED_EVERY: 9,  // fixed seed comb, identical in every row. No sampling.
+  LAT0:   0.50,   // within-layer coupling, constant (horizontal connections)
+  LAT1:   0.34,   // within-layer coupling added as the node grows diffuse
+  VGAIN:  0.78,   // across-layer coupling, gated entirely by (1 - concentration)
+  ATHETA: 0.34,   // a cell is active above this
+  BONDT:  0.36    // a coupling below this is a CLOSED bond: nothing crosses it
 };
 
 /* ---------- colour (same OKLab maths as build_assets.py) ---------------- */
@@ -286,24 +341,14 @@ function oklab2rgb(L){
 }
 const mixHex = (a,b,t) => { const A=rgb2oklab(hex2rgb(a)), B=rgb2oklab(hex2rgb(b));
   return rgb2hex(oklab2rgb([0,1,2].map(i=>A[i]*(1-t)+B[i]*t))); };
-function meanHex(list){
-  if(!list.length) return PAL.ringAnchor;
-  const L=list.map(h=>rgb2oklab(hex2rgb(h)));
-  return rgb2hex(oklab2rgb([0,1,2].map(i=>L.reduce((s,v)=>s+v[i],0)/L.length)));
-}
 function rampHex(stops,t){ t=Math.min(1,Math.max(0,t))*(stops.length-1);
   const i=Math.min(Math.floor(t),stops.length-2); return mixHex(stops[i],stops[i+1],t-i); }
 const withA = (hex,a) => { const c=hex2rgb(hex);
   return 'rgba('+c.map(v=>Math.round(v*255)).join(',')+','+a+')'; };
 const ordinal = n => n+(n%100>=11&&n%100<=13 ? 'th'
                      : ['th','st','nd','rd'][n%10] || 'th');
+const clamp01 = v => v<0?0:(v>1?1:v);
 
-/* Error channel = the same hue, pushed brighter and more saturated, so the two
-   channels read as two channels and not as two arbitrary colours. */
-// Both channel recolourings are pure functions of (hex, dark) and are called
-// once per edge inside regeom(), which runs on every slider step. There are only
-// a few dozen distinct node colours, so memoising turns an OKLab round-trip per
-// edge into a map lookup. Cleared when the theme flips.
 const _boostMemo=new Map(), _desatMemo=new Map(), _rhoMemo=new Map();
 /* The shipped rho ramp runs light grey -> very dark red. That is built for the
    white cortical-surface render, and on the dark panel its top half -- which is
@@ -322,11 +367,10 @@ function boost(hex, dark){
   const k=hex+(dark?'1':'0'); const hit=_boostMemo.get(k); if(hit) return hit;
   const L=rgb2oklab(hex2rgb(hex));
   let l=L[0], a=L[1]*1.5, b=L[2]*1.5;
-  l = dark ? Math.min(0.93, 0.62 + 0.32*l) : Math.max(0.40, 0.14 + 0.52*l);
+  l = dark ? Math.min(0.93, 0.62 + 0.32*l) : Math.max(0.36, 0.12 + 0.50*l);
   const out=rgb2hex(oklab2rgb([l,a,b]));
   _boostMemo.set(k,out); return out;
 }
-
 /* Level inversions are real edges we keep, but they must not compete with the
    main channel. Pull chroma out and push lightness toward the page. */
 function desat(hex, dark){
@@ -342,64 +386,51 @@ function desat(hex, dark){
    INNERMOST. The apex of the hierarchy is therefore the centre of the figure.
      descending predictions  = inner ring -> outer ring  (travel outward)
      ascending  errors       = outer ring -> inner ring  (travel inward)     */
-// Ring radii shrank from [172,132,90,50] to leave a decoration annulus outside
-// ring 0: the receptor bars (FIX 6) and the sensory-stream arcs that modality
-// was demoted to (FIX 7) both live out there now.
-const RADII=[158,121,83,46], SQUASH=0.98, CONTRACT=0.16;
-const CW=800, CH=600, CX=206, CY=232;
-const BAR_GAP=4, BAR_MAX=13;                // receptor bar, just outside a ring
-const ARC_R=RADII[0]+24, LAB_R=RADII[0]+36; // stream arc, then the wedge label
-const RX=420, RW=366;                       // right-hand readout column
+const RADII=[164,125,87,48], SQUASH=0.98, CONTRACT=0.16;
+const CW=930, CH=600, CX=243, CY=234;
+const COLLAR_IN=10, COLLAR_W=5.2;           // the receptor collar, in each ring's gutter
+const ARC_R=RADII[0]+22, LAB_R=RADII[0]+34; // stream arc, then the wedge label
+const RX=452, RW=462;                       // right-hand readout column
 const MODS=['visual','auditory','somatomotor',null];
-// FIX 8. The unlabelled wedge is NOT motor -- see the console census. Every
-// motor parcel (4, 3a/3b/1, 6a/6d/6v/6r/6mp, 55b, FEF, PEF, 5m, 5mv, 24dd)
-// carries stream='somatomotor' and sits in the SOMATOMOTOR wedge. What is left
-// over is 44 parcels, 41 of them unimodal association cortex with no sensory
-// stream assignment at all: DLPFC, posterior cingulate, inferior parietal,
-// TPOJ, lateral temporal, inferior frontal, insula. So it is named for that.
+/* The unlabelled wedge is NOT motor -- see censusWedge() on the console. Every
+   motor parcel (4, 3a/3b/1, 6a/6d/6v/6r/6mp, 55b, FEF, PEF, 5m, 5mv, 24dd)
+   carries stream='somatomotor' and sits in the SOMATOMOTOR wedge. What is left
+   over is 44 parcels, 41 of them unimodal association cortex with no sensory
+   stream assignment at all: DLPFC, posterior cingulate, inferior parietal,
+   TPOJ, lateral temporal, inferior frontal, insula. So it is named for that. */
 const MODLABEL={visual:'VISUAL', auditory:'AUDITORY', somatomotor:'SOMATOMOTOR',
                 null:'NO STREAM\nASSIGNED'};
-/* FIX 7. Sensory stream gets a SHAPE channel, not a hue. Giving it colours put
-   a blue next to idiotypic blue and a violet next to heteromodal violet, which
-   is the same two-colour-systems problem one level down. Dash pattern is
-   orthogonal to hue, so Mesulam type keeps the colour axis to itself. */
+/* Sensory stream gets a SHAPE channel, not a hue. Giving it colours put a blue
+   next to idiotypic blue and a violet next to heteromodal violet. Dash pattern
+   is orthogonal to hue, so Mesulam type keeps the colour axis to itself. */
 const STREAM_DASH={visual:[], auditory:[8,4], somatomotor:[2.6,3.4], null:[1,3.2]};
-const OFF_MAX=420, OFF_K=460;
 const RING_ABBR=['IDIO','UNI','HETERO','PARA'];
 
 /* ---------- 5-HT2A statistics, over all 360 parcels, not the sample -------
-   Used by the receptor-field colourbar and its reference arcs, so the scale
-   does not move when the node-count selector changes. BPnd is the map's native
-   unit (neuromaps beliveau2017/cimbi36); rho is that value min-max normalised,
-   which is what the bar lengths encode. */
+   BPnd is the map's native unit (neuromaps beliveau2017/cimbi36). The figure
+   COLOURS by percentile rank, because the measured distribution is narrow and
+   a linear encoding of it is close to invisible on a projector; the colourbar
+   prints BPnd at the deciles so the real spacing stays readable. The two
+   parcels flagged rhoValid=false carry no cortical-ribbon signal and are not
+   in any of these statistics. */
 const RHO = (function(){
   const ok = PARCELS.filter(p=>p.rhoValid!==false && typeof p.rhoRaw==='number');
   const raw = ok.map(p=>p.rhoRaw).sort((a,b)=>a-b);
-  const nrm = ok.map(p=>p.rho).sort((a,b)=>a-b);
-  const q = (arr,f)=>arr.length ? arr[Math.min(arr.length-1,Math.round(f*(arr.length-1)))] : 0;
+  const q = f => raw.length ? raw[Math.min(raw.length-1,Math.round(f*(raw.length-1)))] : 0;
   const med = list => { const v=list.slice().sort((a,b)=>a-b);
     return v.length ? v[Math.floor(v.length/2)] : 0; };
   const byRing = r => med(ok.filter(p=>p.ring===r).map(p=>p.rhoRaw));
-  const vis = ok.filter(p=>p.stream==='visual').map(p=>p.rhoRaw).sort((a,b)=>a-b);
   return {
-    n:ok.length,
-    lo: raw[0], hi: raw[raw.length-1],
-    med: med(raw),
-    p75raw: q(raw,0.75), p90raw: q(raw,0.90),
-    p75: q(nrm,0.75),    p90: q(nrm,0.90),
-    heteroMed: byRing(2),
-    visLo: vis[0], visHi: vis[vis.length-1], visMed: med(vis)
+    n:ok.length, nBad:PARCELS.length-ok.length,
+    lo:q(0), hi:q(1), p10:q(0.10), med:q(0.50), p90:q(0.90),
+    ringMed:[0,1,2,3].map(byRing)
   };
 })();
 
-const mulberry32 = a => () => { a|=0; a=a+0x6D2B79F5|0;
-  let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t;
-  return ((t^t>>>14)>>>0)/4294967296; };
-
 /* ---------- level / tau, with a clearly-flagged placeholder -------------
-   Stage 1 of the build writes a measured `level` (inverted T1w/T2w myelin)
-   and `tau` into parcels.json. Until it has, the figure still runs on a
-   placeholder level of (3 - ring) + jitter, and says so, loudly. */
+   build_assets.py writes a measured `level` (inverted T1w/T2w myelin) and
+   `tau` (MEG intrinsic timescale) into parcels.json. Until it has, the figure
+   still runs on a placeholder level of ring + jitter, and says so, loudly. */
 const HAS_LEVEL = PARCELS.length>0 && PARCELS.every(p=>typeof p.level==='number');
 const HAS_TAU   = PARCELS.length>0 && PARCELS.every(p=>typeof p.tau==='number');
 const HAS_TAURK = PARCELS.length>0 && PARCELS.every(p=>typeof p.tauRank==='number');
@@ -430,14 +461,16 @@ function downsample(list, target){
 
 let M=null;                                   // topology  (node count changes)
 let S=null;                                   // model state (precision changes)
-let precision=1, hoverRing=-1, hoverNode=null, dirty=true;
-// Edge direction classes. Declared here because build() and the renderer both
-// need them, and the load-time assertion checks against them.
-const E_OUT=0, E_INV=1, E_SAME=2;
+let precision=1, hoverRing=-1, hoverNode=null, dirty=true, latDirty=true;
+// Tier labels for a descending candidate. T_DOWN is the anatomical scaffold's
+// own next-level-out link; everything else is recruited as precision falls.
+const T_DOWN=0, T_SIDE_T=1, T_SIDE_S=2, T_DOWN2=3, T_SIDE_2=4, T_SIDE_S2=5;
+const TIER_S=[1.00, 0.70, 0.50, 0.34, 0.24, 0.20];
 // Pure view state. Nothing in here is coupled to anything else in here, and
-// nothing in here is coupled to whether an injection has been fired.
-const SHOW={pred:true, err:true, halo:true, field:false, bars:false, hideInv:false};
+// nothing in here is coupled to whether a cascade has been fired.
+const SHOW={pred:true, err:true, collar:true, hideInv:false};
 let motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let PRES=false;
 
 function build(target){
   const sel = downsample(PARCELS, target);
@@ -445,7 +478,13 @@ function build(target){
   // p.modality while the node colours were built from p.stream, and the two
   // disagree on 9 parcels -- so a parcel could sit in the unlabelled wedge and
   // still be painted as though it had a stream. One field now, used everywhere.
-  const nodes = sel.map(p=>({p, ring:p.ring, rho:p.rho, rk:p.rhoRank,
+  const nodes = sel.map(p=>({p, ring:p.ring,
+    // rhoValid=false means the PET map has no cortical-ribbon signal there.
+    // Those parcels make no receptor claim: they are not coloured in the
+    // collar, they never recruit, and they are left out of the ring readout.
+    rhoOk:(p.rhoValid!==false),
+    rho:(p.rhoValid!==false ? p.rho : null),
+    rk:(p.rhoValid!==false ? p.rhoRank : 0),
     lvlRaw:rawLevel(p),
     stream:(p.stream!==undefined ? p.stream : p.modality) || null}));
   const byRing=[[],[],[],[]];
@@ -471,44 +510,37 @@ function build(target){
     byRing[r].forEach(n=>buckets[key(n.stream)].push(n));
     MODS.forEach(m=>{
       const arr=buckets[key(m)], k=key(m);
-      arr.forEach((n,i)=>{ n.ang = start[k] + span[k]*(arr.length===1?0.5:(i+0.5)/arr.length); });
+      arr.forEach((n,i)=>{
+        n.slot = span[k]/Math.max(1,arr.length);
+        n.ang  = start[k] + span[k]*(arr.length===1?0.5:(i+0.5)/arr.length);
+      });
     });
   });
   [2,3].forEach(r=>{
     const arr=byRing[r];
-    arr.forEach((n,i)=>{ n.ang = -Math.PI/2 + Math.PI*2*i/arr.length; });
+    arr.forEach((n,i)=>{ n.slot=Math.PI*2/arr.length;
+                         n.ang = -Math.PI/2 + Math.PI*2*i/arr.length; });
   });
   nodes.forEach((n,i)=>{ n.i=i; n.R=RADII[n.ring]; n.cx=Math.cos(n.ang); n.cy=Math.sin(n.ang)*SQUASH; });
 
   // level and tau, normalised across the selected nodes
   const lv=nodes.map(n=>n.lvlRaw), lmin=Math.min(...lv), lmax=Math.max(...lv);
-  nodes.forEach(n=>{ n.levelN = lmax>lmin ? (n.lvlRaw-lmin)/(lmax-lmin) : 0.5; });
-
-  // EFFECTIVE hierarchical level, and the only thing that sets edge direction.
-  // Lexicographic: Mesulam type is the coarse order (it IS the measured laminar
-  // hierarchy, and it is what the rings are), and the T1w/T2w map orders parcels
-  // WITHIN a type. Ordering the two measures this way is what guarantees a
-  // prediction never travels inward across a ring boundary -- ordering by raw
-  // myelin alone does not, because the per-parcel myelin ranges overlap between
-  // adjacent Mesulam classes.
-  byRing.forEach((arr,r)=>{
-    const ord=arr.slice().sort((a,b)=>a.lvlRaw-b.lvlRaw);
-    ord.forEach((n,i)=>{ n.lvl = r + (ord.length>1 ? (i+0.5)/ord.length : 0.5); });
-  });
+  const lspan=Math.max(1e-6, lmax-lmin);
+  nodes.forEach(n=>{ n.levelN = (n.lvlRaw-lmin)/lspan; });
   if(HAS_TAU){
     // sized by percentile rank, not by tau itself -- the measured timescale is
     // right-skewed and a linear radius encoding is nearly flat. Disclosed as
-    // display scaling in the ledger; the raw value is on the card and tooltip.
+    // display scaling in the labelling block; the raw value is in the tooltip.
     const tv=nodes.map(n=>n.p.tau), tmin=Math.min(...tv), tmax=Math.max(...tv);
     nodes.forEach(n=>{
       n.tauRaw=n.p.tau;
       n.tauN = HAS_TAURK ? n.p.tauRank : (tmax>tmin ? (n.p.tau-tmin)/(tmax-tmin) : 0.5);
     });
   } else {
-    nodes.forEach(n=>{ n.tauN = n.levelN; n.tauRaw=null; });   // monotone in level, flagged DERIVED
+    nodes.forEach(n=>{ n.tauN = n.levelN; n.tauRaw=null; });
   }
 
-  // ---- edge layer 1: anatomical scaffold (schematic, never animated) ----
+  // ---- the anatomical scaffold: permanent, schematic, never animated -----
   const edges=[], eset=new Set();
   const addE=(a,b)=>{ const k=a<b?a+'_'+b:b+'_'+a;
     if(a!==b && !eset.has(k)){ eset.add(k); edges.push([a,b]); } };
@@ -519,13 +551,10 @@ function build(target){
     const fed=new Set();
     for(const n of byRing[r]){
       const near=inner.map(t=>[angDist(n.ang,t.ang),t]).sort((a,b)=>a[0]-b[0]).slice(0,2);
-      for(const [,t] of near){
-        addE(n.i,t.i); fed.add(t.i);
-      }
+      for(const [,t] of near){ addE(n.i,t.i); fed.add(t.i); }
     }
-    // "nearest two inward" leaves a lot of inner nodes with no parent at all,
-    // and a node with no outward neighbour can never receive ascending error.
-    // Give every inner node at least one link to the ring outside it.
+    // "nearest two inward" leaves a lot of inner nodes with no partner at all,
+    // and a node with no outward neighbour can never send a prediction down.
     for(const t of inner){
       if(fed.has(t.i)) continue;
       let best=null, bd=Infinity;
@@ -533,188 +562,365 @@ function build(target){
       if(best) addE(best.i, t.i);
     }
   }
+  const ringAdj=nodes.map(()=>[]);
   for(let r=0;r<4;r++){
     const a=byRing[r].slice().sort((x,y)=>x.ang-y.ang);
-    for(let i=0;i<a.length;i++) addE(a[i].i, a[(i+1)%a.length].i);
+    for(let i=0;i<a.length;i++){
+      addE(a[i].i, a[(i+1)%a.length].i);
+      if(a.length>1){
+        ringAdj[a[i].i].push(a[(i+1)%a.length].i);
+        ringAdj[a[i].i].push(a[(i-1+a.length)%a.length].i);
+      }
+    }
   }
+  ringAdj.forEach(l=>{ const s=new Set(l); l.length=0; s.forEach(v=>l.push(v)); });
 
-  // radial adjacency, used for the ascending-error field and for injections
+  // radial adjacency. innerAdj = one ring further IN (higher level, toward the
+  // apex); outerAdj = one ring further OUT (lower level, toward the surface).
   const innerAdj=nodes.map(()=>[]), outerAdj=nodes.map(()=>[]);
   for(const [a,b] of edges){
     const na=nodes[a], nb=nodes[b];
     if(nb.ring===na.ring+1){ innerAdj[a].push(b); outerAdj[b].push(a); }
     else if(na.ring===nb.ring+1){ innerAdj[b].push(a); outerAdj[a].push(b); }
   }
-  // one canonical inward path per ring-0 node: always the angularly nearest hop
-  const chains = byRing[0].map(n0=>{
-    const out=[n0.i]; let cur=n0.i;
-    for(let r=0;r<3;r++){
-      const cand=innerAdj[cur]; if(!cand.length) break;
-      let best=cand[0], bd=Infinity;
-      for(const j of cand){ const d=angDist(n0.ang, nodes[j].ang); if(d<bd){bd=d; best=j;} }
-      out.push(best); cur=best;
+
+  /* ---- THE CANDIDATE LIST -------------------------------------------- *
+   * Precision is not a property a node has. It is how tightly that node's
+   * descending output is concentrated on a few targets. So every node gets
+   * an ORDERED list of candidate targets, walked outward along the figure's
+   * own anatomical scaffold, and the slider decides how far down the list it
+   * reaches. The list is built once, here, and never changes.
+   *
+   * There is no tractography and no functional connectivity in this project,
+   * so "connection strength" is the scaffold's own structure: which tier a
+   * candidate sits in, how far the MEASURED T1w/T2w level drops across the
+   * link, and how close it is angularly. Ordering by those three makes each
+   * node's fan-out depend on its own topology instead of being the slider
+   * restated -- which is the whole point, and is also why the cascades come
+   * out lopsided rather than tidy.
+   *
+   * Ring 0 has no ring further out. Its candidates are its own within-ring
+   * neighbours: lateral prediction inside the sensory sheet. Flagged as such
+   * so nothing claims that ring 0 predicts a level this figure draws.        */
+  const cand=nodes.map(()=>[]);
+  const scaff=nodes.map(()=>[]);
+  for(const [a,b] of edges){ scaff[a].push(b); scaff[b].push(a); }
+  const mkC=(src,tgt,str)=>{
+    const a=nodes[src], b=nodes[tgt];
+    const drop=clamp01((a.lvlRaw-b.lvlRaw)/lspan*3);       // measured level drop
+    return {j:tgt,
+      s: str*(0.55+0.45*drop),
+      inv: b.lvlRaw>a.lvlRaw && b.ring!==a.ring,           // T1w/T2w disagrees with ring order
+      lat: b.ring===a.ring,
+      d: angDist(a.ang,b.ang)};
+  };
+  for(const n of nodes){
+    const i=n.i, seen=new Set([i]), list=[];
+    // A prediction only ever runs to the node's own level or below it, so a
+    // candidate must sit in the same ring or further out. That is what keeps
+    // the channel directed no matter how far the walk goes.
+    const ok=j=>!seen.has(j) && nodes[j].ring<=n.ring;
+    const add=(j,tier)=>{ if(!ok(j)) return; seen.add(j); list.push(mkC(i,j,TIER_S[tier])); };
+    const tierA=outerAdj[i].slice()
+      .sort((x,y)=>angDist(n.ang,nodes[x].ang)-angDist(n.ang,nodes[y].ang));
+    for(const j of tierA) add(j,T_DOWN);
+    for(const j of tierA) for(const k of ringAdj[j]) add(k,T_SIDE_T);
+    for(const j of ringAdj[i]) add(j,T_SIDE_S);
+    for(const j of tierA) for(const k of outerAdj[j]) add(k,T_DOWN2);
+    for(const e of list.slice()) if(nodes[e.j].ring===n.ring-2)
+      for(const k of ringAdj[e.j]) add(k,T_SIDE_2);
+    for(const j of ringAdj[i]) for(const k of ringAdj[j]) add(k,T_SIDE_S2);
+    // Then simply keep walking the scaffold outward, hop by hop, at a strength
+    // that decays with distance. Ring 0 has no ring outside it, so for those
+    // nodes this is the whole list -- lateral prediction inside the sensory
+    // sheet, reaching further round the ring as the node grows diffuse. It is
+    // also what stops a node with a small neighbourhood from hitting a ceiling
+    // that has nothing to do with its receptor density.
+    let frontier=list.map(e=>e.j).concat([i]);
+    for(let hop=1; hop<=6 && list.length<P.TMAX; hop++){
+      const nx=[];
+      for(const f of frontier) for(const k of scaff[f]){
+        if(list.length>=P.TMAX) break;
+        if(!ok(k)) continue;
+        seen.add(k); list.push(mkC(i,k,TIER_S[T_SIDE_S2]*Math.pow(0.86,hop))); nx.push(k);
+      }
+      if(!nx.length) break;
+      frontier=nx;
     }
-    return out;
-  });
+    list.sort((a,b)=> b.s-a.s || a.d-b.d || a.j-b.j);
+    cand[i]=list.slice(0, P.TMAX);
+  }
 
   // ---- node colours -------------------------------------------------------
-  // colour = (this parcel's sensory stream) mixed toward transmodal by (this
-  // parcel's Mesulam type). Nothing about the layout enters, so build_assets.py
-  // can paint the cortical surface with the identical rule and the same parcel
-  // is the same colour in both panels.
-  // FIX 7. Mesulam type is now the SINGLE canonical hue encoding, and the hex
-  // is identical to the one build_assets/rerender_surfaces paints the cortical
-  // surface with -- so a node's colour is how you find that parcel on the brain.
-  // Sensory stream is demoted to a secondary channel: the wedge sector labels
-  // and one thin arc per wedge. It no longer touches the node fill.
-  nodes.forEach(n=>{
-    n.base = (n.stream && PAL.modalityBase[n.stream]) || PAL.ringAnchor;
-    n.col  = PAL.ring[n.ring];
-    // bar colour is resolved in regeom(), not here, because it depends on theme
-  });
+  // Mesulam type is the SINGLE canonical hue encoding, and the hex is identical
+  // to the one build_assets/rerender_surfaces paints the cortical surface with
+  // -- so a node's colour is how you find that parcel on the brain. Sensory
+  // stream is a secondary channel: the wedge labels and one arc per wedge.
+  nodes.forEach(n=>{ n.col = PAL.ring[n.ring]; });
 
-  // ---- edge layer 2 order: a stable shuffle, so edges only ever drop out --
-  const rnd = mulberry32(20260907);
-  const onOrder = edges.map((_,i)=>i);
-  for(let i=onOrder.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1));
-    [onOrder[i],onOrder[j]]=[onOrder[j],onOrder[i]]; }
-
-  // ---- edge layer 3: off-anatomy pool, recruited by endpoint 5-HT2A ------
-  const w=nodes.map(n=>0.15+n.rk), cum=[]; let acc=0;
-  for(const v of w){ acc+=v; cum.push(acc); }
-  const pick=()=>{ const t=rnd()*acc; let lo=0,hi=cum.length-1;
-    while(lo<hi){ const mid=(lo+hi)>>1; if(cum[mid]<t) lo=mid+1; else hi=mid; } return lo; };
-  const pool=[], seen=new Set();
-  let guard=0;
-  while(pool.length<900 && guard++<60000){
-    const a=pick(), b=pick();
-    if(a===b) continue;
-    const k=a<b?a+'_'+b:b+'_'+a;
-    if(eset.has(k)||seen.has(k)) continue;
-    seen.add(k); pool.push([a,b,(nodes[a].rk+nodes[b].rk)/2]);
-  }
-  pool.sort((x,y)=>y[2]-x[2]);
-
-  // ---- DERIVED: every functional edge gets its direction from the MEASURED
-  // level (inverted T1w/T2w myelin), NOT from the ring it was drawn in and NOT
-  // from the order its endpoints happen to sit in the array.
-  //   hi = higher level. Prediction runs hi -> lo; the paired error return runs
-  //   lo -> hi. Where the myelin order disagrees with the Mesulam ring order the
-  //   edge is a LEVEL INVERSION: a real feature of the T1w/T2w map, kept at
-  //   measured direction, but drawn as an exception rather than at full weight.
-  // Each edge is [hi, lo, flag]:
-  //   E_OUT  cross-ring, prediction advances apex -> surface (radius increases)
-  //   E_INV  cross-ring level inversion, prediction advances the other way
-  //   E_SAME within one ring, so radius is equal and "outward" is undefined
-  const orient = list => list.map(e=>{
-    const a=e[0], b=e[1];
-    const hi = nodes[a].lvlRaw >= nodes[b].lvlRaw ? a : b;
-    const lo = (hi===a) ? b : a;
-    const ra=nodes[hi].ring, rb=nodes[lo].ring;
-    return [hi, lo, ra===rb ? E_SAME : (ra>rb ? E_OUT : E_INV)];
-  });
-  const onEdges = orient(onOrder.map(i=>edges[i]));
-  const offEdges = orient(pool);
-
-  // Inversion census, reported in the HUD and per ring pair on the console.
-  const invPair={};
-  let nCross=0, nInv=0;
-  for(const [hi,lo,fl] of onEdges.concat(offEdges)){
-    if(fl===E_SAME) continue;
-    nCross++;
-    const k='ring '+Math.min(nodes[hi].ring,nodes[lo].ring)+
-            '\u2013'+Math.max(nodes[hi].ring,nodes[lo].ring);
-    const b=invPair[k]||(invPair[k]={n:0,inv:0});
-    b.n++;
-    if(fl===E_INV){ nInv++; b.inv++; }
-  }
-  const myelinAgree = nCross ? 1-nInv/nCross : 1;
-
-  const meanRk=[0,1,2,3].map(r=>byRing[r].length
-    ? byRing[r].reduce((s,n)=>s+n.rk,0)/byRing[r].length : 0);
-
-  // one exemplar node per ring for the generative-model cards: the ring's
-  // median 5-HT2A parcel, so the card is representative and not cherry-picked
-  const exemplar = byRing.map(arr=>{
-    if(!arr.length) return null;
-    const med = f => { const v=arr.map(f).sort((a,b)=>a-b); return v[Math.floor(v.length/2)]; };
-    const mR=med(n=>n.rk), mT=med(n=>n.tauN);
-    let best=arr[0], bd=Infinity;
-    for(const n of arr){
-      const d=Math.abs(n.rk-mR)+Math.abs(n.tauN-mT);
-      if(d<bd){ bd=d; best=n; }
+  /* ---- Panel B lattice ------------------------------------------------ *
+   * The same parcels, unrolled. Row r is Mesulam ring r; columns follow the
+   * Margulies gradient, the same order that sets angle in Panel A. Rings hold
+   * different numbers of parcels, so each row is sampled at COLS evenly
+   * spaced gradient ranks -- deterministic, no sampling in the random sense. */
+  const grid=[];
+  for(let r=0;r<4;r++){
+    const arr=byRing[r], row=[];
+    for(let c=0;c<P.COLS;c++){
+      row.push(arr.length ? arr[Math.min(arr.length-1,
+        Math.floor((c+0.5)*arr.length/P.COLS))].i : -1);
     }
-    return best;
-  });
+    grid.push(row);
+  }
+
+  // Inversion census over the anatomical tier only, reported in the key.
+  let nCross=0, nInv=0; const invPair={};
+  for(const n of nodes) for(const c of cand[n.i]){
+    if(c.lat) continue;
+    nCross++;
+    const k='ring '+Math.min(n.ring,nodes[c.j].ring)+'–'+Math.max(n.ring,nodes[c.j].ring);
+    const b=invPair[k]||(invPair[k]={n:0,inv:0});
+    b.n++; if(c.inv){ nInv++; b.inv++; }
+  }
 
   const tv2=nodes.map(n=>n.tauRaw).filter(v=>v!==null);
   const tauLo = tv2.length?Math.min(...tv2):0, tauHi = tv2.length?Math.max(...tv2):1;
-
   const sizeK = Math.max(0.72, Math.min(1.3, Math.sqrt(150/nodes.length)));
-  const fieldAlpha = 0.22*Math.sqrt(64/nodes.length);
 
-  return {nodes, byRing, edges, onEdges, offEdges, innerAdj, outerAdj, chains,
-          sectors, meanRk, exemplar, sizeK, fieldAlpha, myelinAgree, tauLo, tauHi,
-          invPair, nCross, nInv,
+  return {nodes, byRing, edges, innerAdj, outerAdj, ringAdj, cand, grid,
+          sectors, sizeK, tauLo, tauHi, invPair, nCross, nInv, lspan,
           PX:new Float32Array(nodes.length), PY:new Float32Array(nodes.length)};
 }
 
 /* ======================================================================== *
- *  THE MODEL. All of this is ASSUMED; the ledger prints it verbatim.
+ *  THE MODEL.
+ *
+ *  5-HT2A agonism makes layer-5 pyramidal cells MORE excitable, so descending
+ *  drive goes up, not down. What falls is how concentrated that drive is
+ *  across its targets. So the slider does not fade anything: it makes each
+ *  node recruit more descending targets, receptor-densest nodes first. Total
+ *  outgoing weight rises; per-target weight falls faster. Precision is then
+ *  read back off the picture -- it is the concentration of the outgoing
+ *  weight vector that was actually drawn.
  * ======================================================================== */
-function reprecision(){
-  const N=M.nodes, n=N.length, d=1-precision;
-  const pi=new Float64Array(n), sig=new Float64Array(n);
-  for(let i=0;i<n;i++){
-    pi[i]  = precision*(1 - N[i].rho*d);                 // pi_i = pi (1 - rho_i d)
-    sig[i] = 1/Math.sqrt(Math.max(P.PI_FLOOR, pi[i]));   // prior width = 1/sqrt(pi_i)
-  }
-  // ambient ascending-error field: what survives past each node, ring by ring
-  const A=new Float64Array(n), E=new Float64Array(n);
-  for(const nd of M.byRing[0]){ A[nd.i]=1; E[nd.i]=1-pi[nd.i]; }
-  for(let r=1;r<4;r++) for(const nd of M.byRing[r]){
-    const src=M.outerAdj[nd.i];
-    let s=0; for(const j of src) s+=E[j];
-    A[nd.i] = src.length ? s/src.length : 0;
-    E[nd.i] = A[nd.i]*(1-pi[nd.i]);                      // e_out = e_in (1 - pi_i)
-  }
-  // penetration depth: mean ring index at which an injected unit error
-  // crosses THETA, interpolated inside the hop it dies in
-  const T=-Math.log(P.THETA);
-  let sum=0;
-  for(const ch of M.chains){
-    let L=0, dep=3;
-    for(let k=1;k<ch.length;k++){
-      const u=Math.max(1e-12, 1-pi[ch[k]]);
-      const L2=L-Math.log(u);
-      if(L2>=T){ dep = (k-1) + (T-L)/(L2-L); break; }
-      L=L2;
-    }
-    sum += Math.min(3, Math.max(1, dep));
-  }
-  const depth = M.chains.length ? sum/M.chains.length : 1;
-  let piSum=0; for(let i=0;i<n;i++) piSum+=pi[i];
-  const piMean = n ? piSum/n : 0;
-  S={pi, sig, A, E, depth, d, piMean};
+/* One node's outgoing weight vector at a (fractional) target count.
+   Raw weight = candidate strength, decayed by rank in the candidate list; the
+   newest target is faded in by the fractional part, so nothing jumps. The
+   concentration returned is 1 / exp(Shannon entropy), i.e. one over the
+   effective number of targets -- read off the vector that is actually drawn. */
+function weights(list, kf){
+  const L=list.length;
+  kf=Math.max(1, Math.min(L, kf));
+  const k=Math.max(1, Math.min(L, Math.ceil(kf-1e-9)));
+  const tail=kf-(k-1);                  // in (0, 1]
+  let sum=0; const raw=new Float64Array(k);
+  for(let j=0;j<k;j++){ raw[j]=list[j].s*Math.pow(P.DECAY,j)*(j===k-1?tail:1); sum+=raw[j]; }
+  let H=0; const p=new Float64Array(k);
+  for(let j=0;j<k;j++){ p[j]=raw[j]/sum; if(p[j]>0) H-=p[j]*Math.log(p[j]); }
+  return {k, p, conc:1/Math.exp(H)};
 }
 
-/* one clicked injection: a unit error at a ring-0 node's output, hop by hop */
-function traceInjection(i0){
-  const ch = M.chains[M.byRing[0].findIndex(n=>n.i===i0)];
-  if(!ch) return null;
-  const steps=[{node:ch[0], e:P.E_INJECT}];
-  let e=P.E_INJECT, dead=-1;
-  for(let k=1;k<ch.length;k++){
-    e *= (1 - S.pi[ch[k]]);
-    steps.push({node:ch[k], e});
-    if(e < P.THETA){ dead=k; break; }
+function reprecision(){
+  const N=M.nodes, n=N.length, d0=1-precision;
+  const K=new Int16Array(n);              // targets drawn (ceil of the below)
+  const Kf=new Float64Array(n);           // targets recruited, continuous
+  const W=new Float64Array(n);            // total outgoing drive
+  const conc=new Float64Array(n);         // 1 / effective number of targets
+  const base=new Float64Array(n);         // the same, at pi = 100
+  const idx=new Float64Array(n);          // conc / base -- the headline quantity
+  const share=[];                         // per-node normalised weight vector
+
+  for(let i=0;i<n;i++){
+    const list=M.cand[i], L=list.length;
+    if(!L){ K[i]=0; Kf[i]=0; W[i]=0; conc[i]=1; base[i]=1; idx[i]=1; share.push([]); continue; }
+    // A parcel with no valid PET signal makes no receptor claim, so it never
+    // recruits: it holds its single anatomical target at every slider position.
+    const di = N[i].rhoOk ? Math.pow(d0, P.GAMMA)*N[i].rk : 0;
+    // The target count is continuous, not a staircase: the newest target fades
+    // in over the slider step that recruits it. Integer counts put a dead zone
+    // at the top of the slider and made every reading jump.
+    const kf = Math.min(L, P.K0 + P.KGAIN*di);
+    const st = weights(list, kf);
+    K[i]=st.k; Kf[i]=kf; conc[i]=st.conc;
+    base[i]=weights(list, Math.min(L,P.K0)).conc;   // the same node at pi = 100
+    idx[i]=conc[i]/base[i];
+    W[i]=1+P.WGAIN*di;
+    share.push(st.p);
   }
-  return {steps, dead, t0:performance.now()};
+
+  // The headline: one value per ring, not one scalar. A scalar would be a
+  // monotone function of the slider and would say nothing the slider does not.
+  // The claim is that precision falls UNEVENLY, in receptor order.
+  const ring=[0,1,2,3].map(r=>{
+    const a=M.byRing[r].filter(x=>x.rhoOk);
+    return a.length ? a.reduce((s,x)=>s+idx[x.i],0)/a.length : null;
+  });
+  // Total drive and mean per-target weight, printed under the row: the one
+  // sentence the picture has to carry is "more targets, each weaker".
+  let wTot=0, eTot=0;
+  for(let i=0;i<n;i++){ if(!K[i]) continue; wTot+=W[i]; eTot+=Kf[i]; }
+  S={K, Kf, W, conc, idx, share, ring, nEdge:eTot, drive:wTot,
+     perTarget: eTot ? wTot/eTot : 0};
+}
+
+/* ---------- the reciprocal map: who predicts me -------------------------
+   Built off exactly the edges that are drawn. A node's ascending fan-out is
+   therefore not a separate assumption: it is the descending map, reversed. */
+function reciprocal(){
+  const n=M.nodes.length, back=[];
+  for(let i=0;i<n;i++) back.push([]);
+  for(let i=0;i<n;i++){
+    const list=M.cand[i], k=S.K[i], p=S.share[i];
+    for(let j=0;j<k;j++) back[list[j].j].push({from:i, p:p[j], lat:list[j].lat});
+  }
+  for(const b of back) b.sort((x,y)=>y.p-x.p);
+  S.back=back;
+}
+
+/* ---------- one clicked cascade -----------------------------------------
+   Deterministic. No sampling anywhere: same click, same cascade, every time,
+   in rehearsal and in the room. An error released at a surface node climbs to
+   whichever nodes were predicting the node it is sitting on, and how far it
+   gets depends on how diffuse those predictions have become.
+
+     arriving at y  =  e(x) . CGAIN . share(y->x)^CSHARE . (1 - conc(y))
+
+   (1 - conc(y)) is the whole mechanism in one factor. At pi = 100 every node
+   holds a single target, conc = 1, and the error is explained away where it
+   lands. As targets proliferate conc falls, less of the error is cancelled,
+   and the cascade climbs. BMAX / GMAX / NMAX are legibility caps, not model. */
+function traceCascade(seed){
+  const gens=[[{node:seed, e:1}]];
+  const seen=new Set([seed]);
+  let total=1;
+  for(let g=1; g<=P.GMAX && total<P.NMAX; g++){
+    const next=[];
+    for(const cur of gens[g-1]){
+      const parents=S.back[cur.node]||[];
+      let taken=0;
+      for(const pa of parents){
+        if(taken>=P.BMAX || total+next.length>=P.NMAX) break;
+        if(seen.has(pa.from)) continue;
+        const y=pa.from;
+        const e = cur.e * P.CGAIN * Math.pow(pa.p, P.CSHARE) * (1-S.idx[y]);
+        if(e < P.CTHETA) continue;         // explained away
+        seen.add(y); next.push({node:y, e, from:cur.node}); taken++;
+      }
+    }
+    if(!next.length) break;
+    gens.push(next); total+=next.length;
+  }
+  const deepest=Math.max(...gens.flat().map(s=>M.nodes[s.node].ring));
+  return {gens, total, deepest, seed, t0:performance.now(), paused:false, pauseAt:0};
+}
+
+/* ---------- freeze-frame: the same click at three precisions ------------
+   The standard subcritical / critical / supercritical triptych, except that
+   nothing here is a distribution and nothing is fitted: it is literally the
+   same node clicked three times with the slider in three places, and the
+   three ladders put side by side. Computed on demand, cached until the seed
+   or the node count changes. The live slider is not touched. */
+let TRIP=null;
+function tripCompute(seed){
+  const keep=precision, out=[];
+  for(const pv of P.TRIP){
+    precision=pv/100; reprecision(); reciprocal();
+    const tr=traceCascade(seed);
+    const hops=tr.gens.length-1;
+    out.push({pi:pv, total:tr.total, hops, deepest:tr.deepest,
+      rows:tr.gens.map(g=>g.map(x=>M.nodes[x.node].ring)),
+      verdict: hops<=1 ? 'dies out' : (hops<=3 ? 'holds' : 'spreads')});
+  }
+  precision=keep; reprecision(); reciprocal(); relattice();
+  return {seed, panes:out};
+}
+
+/* ---------- Panel B: the lattice ----------------------------------------
+   A fixed comb of seeds, identical in every row, spreads along two couplings:
+
+     within a layer   LAT0 + LAT1 . (1 - conc)     constant part = horizontal
+                                                   connections, which the drug
+                                                   is not being claimed to touch
+     across layers    VGAIN . (1 - conc of the upper cell)
+
+   At pi = 100 the across-layer coupling is exactly zero, so every patch is
+   trapped inside its own row: activity does not cross levels. As pi falls the
+   upper cells grow diffuse, the vertical coupling opens, and patches begin to
+   span. That is hierarchy collapse drawn literally, a correlation length
+   growing, and an Ising lattice going patchy -- one event, three vocabularies.
+
+   High pi is the COLD, ordered side. The slider bottoms out patchy, at the
+   critical side; it never reaches a noise-dominated state, which would depict
+   a seizure. Flood fill, max-plus, deterministic. */
+function relattice(){
+  const C=P.COLS, A=[], node=M.grid;
+  for(let r=0;r<4;r++) A.push(new Float64Array(C));
+  const cc = (r,c)=>{ const i=node[r][c]; return i<0 ? 1 : S.idx[i]; };
+  // bond strengths. A bond below BONDT is CLOSED: nothing crosses it, and the
+  // cells on either side of it are in different patches even though they are
+  // drawn next to each other. That is what makes the vertical direction go
+  // from sealed to open as pi falls, instead of being open all along.
+  const hb=[], vb=[];                       // horizontal (r,c)-(r,c+1); vertical (r,c)-(r+1,c)
+  for(let r=0;r<4;r++){ hb.push(new Float64Array(C)); vb.push(new Float64Array(C)); }
+  for(let r=0;r<4;r++) for(let c=0;c<C;c++){
+    if(c<C-1) hb[r][c]=P.LAT0+P.LAT1*(1-Math.min(cc(r,c),cc(r,c+1)));
+    if(r<3)   vb[r][c]=P.VGAIN*(1-cc(r+1,c));      // gated by the UPPER cell
+  }
+  const open=(w)=>w>=P.BONDT;
+  const q=[];
+  for(let r=0;r<4;r++) for(let c=0;c<C;c++){
+    if(c%P.SEED_EVERY!==2) continue;
+    A[r][c]=1; q.push([r,c]);
+  }
+  for(let h=0; h<q.length; h++){
+    const [r,c]=q[h], a=A[r][c];
+    const push=(r2,c2,w)=>{
+      if(r2<0||r2>3||c2<0||c2>=C || !open(w)) return;
+      const v=a*w;
+      if(v>A[r2][c2]+1e-9 && v>=P.ATHETA*0.5){ A[r2][c2]=v; q.push([r2,c2]); }
+    };
+    if(c>0)   push(r,c-1, hb[r][c-1]);
+    if(c<C-1) push(r,c+1, hb[r][c]);
+    if(r<3)   push(r+1,c, vb[r][c]);
+    if(r>0)   push(r-1,c, vb[r-1][c]);             // the same bond, read downward
+  }
+  // patches = components of active cells joined by OPEN bonds
+  const on=[], lab=[];
+  for(let r=0;r<4;r++){ on.push(new Uint8Array(C)); lab.push(new Int16Array(C).fill(-1)); }
+  let nOn=0;
+  for(let r=0;r<4;r++) for(let c=0;c<C;c++) if(A[r][c]>=P.ATHETA){ on[r][c]=1; nOn++; }
+  const comp=[]; let nc=0;
+  for(let r=0;r<4;r++) for(let c=0;c<C;c++){
+    if(!on[r][c] || lab[r][c]>=0) continue;
+    const st=[[r,c]]; lab[r][c]=nc;
+    const cells=[]; let r0=4, r1=-1;
+    while(st.length){
+      const [y,x]=st.pop(); cells.push([y,x]);
+      if(y<r0) r0=y; if(y>r1) r1=y;
+      const nb=[[y,x-1,x>0&&open(hb[y][x-1])],[y,x+1,x<C-1&&open(hb[y][x])],
+                [y-1,x,y>0&&open(vb[y-1][x])],[y+1,x,y<3&&open(vb[y][x])]];
+      for(const [y2,x2,ok] of nb){
+        if(!ok || y2<0||y2>3||x2<0||x2>=C) continue;
+        if(!on[y2][x2] || lab[y2][x2]>=0) continue;
+        lab[y2][x2]=nc; st.push([y2,x2]);
+      }
+    }
+    comp.push({id:nc, cells, rows:r1-r0+1, n:cells.length}); nc++;
+  }
+  comp.sort((a,b)=>b.n-a.n);
+  const spanRows=comp.length?Math.max(...comp.map(c=>c.rows)):0;
+  let nvb=0, nvtot=0;
+  for(let r=0;r<3;r++) for(let c=0;c<C;c++){ nvtot++; if(open(vb[r][c])) nvb++; }
+  S.lat={A, on, lab, comp, hb, vb, nOn, frac:nOn/(4*C), spanRows,
+         vOpen:nvb, vTot:nvtot, biggest:comp.length?comp[0].n:0};
+  latDirty=true;
 }
 
 /* ---------- rendering --------------------------------------------------- */
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const lcv=document.getElementById('lat'), lctx=lcv.getContext('2d');
 const perf=document.getElementById('perf'), tip=document.getElementById('tip');
+const latstat=document.getElementById('latstat');
 const THEME={};
 function readTheme(){
   const cs=getComputedStyle(document.documentElement);
@@ -723,16 +929,28 @@ function readTheme(){
   THEME.faint=cs.getPropertyValue('--faint').trim();
   THEME.edge=cs.getPropertyValue('--edge').trim();
   THEME.panel=cs.getPropertyValue('--panel').trim();
+  THEME.bg=cs.getPropertyValue('--bg').trim();
   THEME.scaffold='rgba('+cs.getPropertyValue('--scaffold').trim()+','+
                  cs.getPropertyValue('--scaffold-a').trim()+')';
-  THEME.dark=document.documentElement.getAttribute('data-theme')==='dark';
+  THEME.dark=document.documentElement.getAttribute('data-theme')==='dark' && !PRES;
+}
+/* One font helper, so presentation mode can lift every size on the canvas at
+   once instead of leaving half the labels at laptop size on a projector. */
+let FK=1;
+const fnt=(px,w)=>(w?w+' ':'')+(px*FK).toFixed(1)+'px ui-sans-serif,system-ui,sans-serif';
+
+function fitOne(canvas, c, w, h){
+  const r=canvas.getBoundingClientRect(), dpr=Math.min(2.5, window.devicePixelRatio||1);
+  if(!r.width||!r.height) return null;
+  canvas.width=Math.round(r.width*dpr); canvas.height=Math.round(r.height*dpr);
+  const s=Math.min(r.width/w, r.height/h)*dpr;
+  c.setTransform(s,0,0,s,(canvas.width-w*s)/2,(canvas.height-h*s)/2);
+  return {scale:s/dpr, ox:(r.width-w*(s/dpr))/2, oy:(r.height-h*(s/dpr))/2};
 }
 function fit(){
-  const r=cv.getBoundingClientRect(), dpr=Math.min(2.5, window.devicePixelRatio||1);
-  cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
-  const s=Math.min(r.width/CW, r.height/CH)*dpr;
-  ctx.setTransform(s,0,0,s,(cv.width-CW*s)/2,(cv.height-CH*s)/2);
-  M.scale=s/dpr; M.ox=(r.width-CW*(s/dpr))/2; M.oy=(r.height-CH*(s/dpr))/2;
+  const a=fitOne(cv, ctx, CW, CH);
+  if(a){ M.scale=a.scale; M.ox=a.ox; M.oy=a.oy; }
+  fitLat();
   regeom();
 }
 const contraction = () => 1 - CONTRACT*(1-precision);
@@ -746,7 +964,7 @@ function Chan(){ return {map:new Map(), list:[]}; }
 function chanGet(G, col, wbin, w0, w1, inv){
   const k=qkey(col)+'|'+wbin+'|'+(inv?1:0);
   let g=G.map.get(k);
-  if(!g){ g={col, inv:!!inv, w:(w0+w1*(wbin/(NB-1)))*(inv?0.55:1),
+  if(!g){ g={col, inv:!!inv, w:(w0+w1*(wbin/(NB-1)))*(inv?0.62:1),
              path:new Path2D(), head:new Path2D()};
           G.map.set(k,g); G.list.push(g); }
   return g;
@@ -760,17 +978,17 @@ function seg(path, head, ax,ay, bx,by, off, hs){
   const ux=dx/L, uy=dy/L, px=-uy*off, py=ux*off;
   const x2=bx+px, y2=by+py;
   path.moveTo(ax+px, ay+py); path.lineTo(x2, y2);
-  if(L<14) return;                       // too short to carry a legible head
-  const bk=4.6, tx=x2-ux*bk, ty=y2-uy*bk, w=hs*0.62;
+  if(L<13) return;                       // too short to carry a legible head
+  const bk=4.2, tx=x2-ux*bk, ty=y2-uy*bk, w=hs*0.62;
   head.moveTo(tx, ty);
   head.lineTo(tx-ux*hs-uy*w, ty-uy*hs+ux*w);
   head.lineTo(tx-ux*hs+uy*w, ty-uy*hs-ux*w);
   head.closePath();
 }
 
-const OFFSET=1.55;                            // half-separation of the two channels
-const WP0=0.50, WP1=1.75;                     // prediction line widths
-const WE0=0.65, WE1=2.30;                     // error line widths
+const OFFSET=1.7;                             // half-separation of the two channels
+const WP0=0.55, WP1=2.30;                     // prediction line widths
+const WE=0.75;                                // error-return line width, constant
 
 function regeom(){
   const k=contraction(), N=M.nodes, PX=M.PX, PY=M.PY;
@@ -783,57 +1001,52 @@ function regeom(){
   for(const [a,b] of M.edges){ sc.moveTo(PX[a],PY[a]); sc.lineTo(PX[b],PY[b]); }
   M.scaffoldPath=sc;
 
-  // how much functional traffic exists at this precision (unchanged from v1)
-  const nOn  = Math.round(M.edges.length*0.26*(0.70+0.30*precision));
-  const nOff = Math.min(OFF_MAX, Math.round(OFF_K*Math.pow(1-precision,2)));
-  const active = M.onEdges.slice(0,nOn).concat(M.offEdges.slice(0,nOff));
-
-  const GP=Chan(), GE=Chan();
-  // COUNTS ARE MODEL STATE, NOT VIEW STATE. nP / nE are what survives the cull
-  // at this precision; they do not change when a toggle is flipped. Only whether
-  // a surviving edge is added to a path depends on SHOW. That separation is what
-  // stops an empty layer and a dead toggle from looking alike.
-  let nP=0, nE=0, nPanat=0, nProut=0, nPinv=0, nEinv=0, nCrossOn=0, nInvOn=0, nInvHid=0;
-  for(let ei=0; ei<active.length; ei++){
-    const e=active[ei];
-    const hi=e[0], lo=e[1], fl=e[2];           // hi = higher MEASURED level
-    const inv = fl===E_INV;
-    if(inv && SHOW.hideInv){ nInvHid++; continue; }
-    const wP=S.pi[hi];                         // prediction weight  = pi of source
-    const wE=S.E[lo];                          // error magnitude reaching this segment
-    const lives = wP>=P.PI_CULL || wE>=P.E_CULL;
-    // cross-ring / inversion census counts EDGES that survive the cull in at
-    // least one channel, so it never double-counts an edge carrying both.
-    if(lives && fl!==E_SAME){ nCrossOn++; if(inv) nInvOn++; }
-    if(wP>=P.PI_CULL){
-      nP++; if(inv) nPinv++;
-      if(ei<nOn) nPanat++; else nProut++;
-      if(SHOW.pred){
-        const g=chanGet(GP, inv?desat(M.nodes[hi].col,THEME.dark):M.nodes[hi].col,
-                        qbin(wP), WP0, WP1, inv);
-        // source = hi, target = lo. Dash phase advances source -> target, so for
-        // every non-inverted edge it advances outward. Asserted at load time.
-        seg(g.path, g.head, PX[hi],PY[hi], PX[lo],PY[lo], OFFSET, 2.2+0.9*g.w);
-      }
-    }
-    if(wE>=P.E_CULL){
-      nE++; if(inv) nEinv++;
-      if(SHOW.err){
-        const g=chanGet(GE, inv?desat(M.nodes[lo].col,THEME.dark)
-                                :boost(M.nodes[lo].col, THEME.dark),
-                        qbin(wE), WE0, WE1, inv);
-        // source = lo, target = hi: the error return runs against the prediction.
-        seg(g.path, g.head, PX[lo],PY[lo], PX[hi],PY[hi], OFFSET, 2.2+0.9*g.w);
-      }
+  /* ---- descending predictions ---------------------------------------- *
+   * Width is the per-target weight, which does fall. Alpha is CONSTANT and
+   * nothing is culled: fading this channel as pi drops would depict
+   * "predictions get weaker", which is exactly the reading of REBUS that its
+   * critics say is wrong. What changes is how many lines there are.        */
+  const GP=Chan();
+  let nP=0, nInvOn=0, nInvHid=0, nLat=0, nCrossOn=0;
+  // The width bins run over the range the weights actually occupy. At pi = 100
+  // a node's strongest target carries about 0.45 of its drive, so that is the
+  // top of the scale; everything below it is a genuinely thinner line.
+  const wRef=0.45;
+  for(let i=0;i<N.length;i++){
+    const list=M.cand[i], k2=S.K[i], p=S.share[i];
+    for(let j=0;j<k2;j++){
+      const c=list[j];
+      if(c.inv && SHOW.hideInv){ nInvHid++; continue; }
+      nP++; if(c.inv) nInvOn++; if(c.lat) nLat++; else nCrossOn++;
+      if(!SHOW.pred) continue;
+      const w=S.W[i]*p[j]/wRef;          // per-target weight, ~1.0 at pi = 100
+      const g=chanGet(GP, c.inv?desat(N[i].col,THEME.dark):N[i].col,
+                      qbin(Math.sqrt(clamp01(w))), WP0, WP1, c.inv);
+      // source first, target second: the dash phase advances source -> target,
+      // which for every non-inverted edge is apex -> surface.
+      seg(g.path, g.head, PX[i],PY[i], PX[c.j],PY[c.j], OFFSET, 2.0+0.95*g.w);
     }
   }
+  /* ---- ascending error return ----------------------------------------- *
+   * The anatomy, not a model output: one thin inward arrow along every radial
+   * scaffold link, constant at every slider position. It says where error CAN
+   * travel. What happens to a particular error at this precision is the
+   * cascade, which is the thing you click.                                  */
+  const GE=Chan(); let nE=0;
+  if(SHOW.err){
+    const g=chanGet(GE, boost(PAL.ring[0], THEME.dark), NB-1, WE, 0, false);
+    g.w=WE;
+    for(let i=0;i<N.length;i++) for(const j of M.innerAdj[i]){
+      nE++; seg(g.path, g.head, PX[i],PY[i], PX[j],PY[j], -OFFSET, 2.6);
+    }
+  } else {
+    for(let i=0;i<N.length;i++) nE+=M.innerAdj[i].length;
+  }
   M.GP=GP; M.GE=GE; M.nP=nP; M.nE=nE;
-  M.nPanat=nPanat; M.nProut=nProut; M.nPinv=nPinv; M.nEinv=nEinv;
-  M.nCrossOn=nCrossOn; M.nInvOn=nInvOn; M.nInvHid=nInvHid;
+  M.nInvOn=nInvOn; M.nInvHid=nInvHid; M.nLat=nLat; M.nCrossOn=nCrossOn;
 
-  // node discs / halos / dots, batched by colour and by width bin
-  const HB=6;
-  const halo=new Map(), haloList=[], dots=new Map(), dotList=[], discs=new Map(), discList=[];
+  // node discs, batched by colour
+  const dots=new Map(), dotList=[], hollow=[];
   // angular spacing of each ring at the current contraction; node radius is
   // capped against it so a dense ring stays a row of nodes and does not fuse
   // into a solid band. The cap is a display decision, not part of the model.
@@ -841,43 +1054,35 @@ function regeom(){
     ? 2*Math.PI*RADII[r]*k/M.byRing[r].length : 99);
   for(const n of N){
     const i=n.i;
-    const nr=Math.max(1.0, Math.min(0.40*gap[n.ring],
-                      (1.30 + 2.60*n.tauN)*M.sizeK));            // radius from tau
-    const hw=Math.min(11,(0.80 + 2.00*(S.sig[i]-1)))*M.sizeK;    // halo width from 1/sqrt(pi_i)
-    n.nr=nr; n.hw=hw;
-    if(SHOW.halo){
-      const hb=Math.max(0,Math.min(HB-1, Math.round((hw/11)*(HB-1))));
-      const key=qkey(n.col)+'|'+hb;
-      let g=halo.get(key);
-      if(!g){ g={col:n.col, w:0.8+(10.2*hb/(HB-1)), path:new Path2D()}; halo.set(key,g); haloList.push(g); }
-      const rr=nr + g.w/2 + 2.4;   // 2.4px of clear ground = the hole in the ring
-      g.path.moveTo(PX[i]+rr, PY[i]); g.path.arc(PX[i],PY[i],rr,0,Math.PI*2);
-    }
-    if(SHOW.field){
-      // FIX 6. One thin radial bar per node, drawn just OUTSIDE that node's own
-      // ring at its own angular position: a circular bar chart. Nothing is
-      // stacked and nothing is translucent, so nothing sums into mud, and each
-      // node's value stays individually readable. Length AND colour both encode
-      // the same quantity -- rho, the measured BPnd min-max normalised -- so
-      // there is one scale on screen, the one the colourbar prints.
-      const dc=rhoCol(n.rho);
-      const key=qkey(dc);
-      let g=discs.get(key);
-      if(!g){ g={col:dc, path:new Path2D(), cap:new Path2D()};
-              discs.set(key,g); discList.push(g); }
-      const r0=(n.R+BAR_GAP)*k, r1=(n.R+BAR_GAP+BAR_MAX*n.rho)*k;
-      g.path.moveTo(CX+n.cx*r0, CY+n.cy*r0);
-      g.path.lineTo(CX+n.cx*r1, CY+n.cy*r1);
-      if(n.rho>=RHO.p90){                       // top decile, made unmistakable
-        g.cap.moveTo(CX+n.cx*r1+1.7, CY+n.cy*r1);
-        g.cap.arc(CX+n.cx*r1, CY+n.cy*r1, 1.7, 0, Math.PI*2);
-      }
-    }
+    const nr=Math.max(1.1, Math.min(0.42*gap[n.ring],
+                      (1.35 + 2.70*n.tauN)*M.sizeK));            // radius from tau
+    n.nr=nr;
+    if(!n.rhoOk){ hollow.push(n); continue; }
     let g=dots.get(n.col);
     if(!g){ g={col:n.col, path:new Path2D()}; dots.set(n.col,g); dotList.push(g); }
     g.path.moveTo(PX[i]+nr, PY[i]); g.path.arc(PX[i],PY[i],nr,0,Math.PI*2);
   }
-  M.haloList=haloList; M.dotList=dotList; M.discList=discList;
+  M.dotList=dotList; M.hollow=hollow;
+
+  /* ---- the receptor collar -------------------------------------------- *
+   * One thin arc track per ring, in the gutter just inside that ring's node
+   * orbit. Receptor density varies both radially and angularly, and any
+   * single-axis encoding flattens one of those; four concentric bands keep
+   * both. Each segment spans one node's angular slot and carries that
+   * parcel's own percentile -- the finest honest cell there is. A parcel
+   * flagged rhoValid=false leaves a real gap, not a zero.                  */
+  const coll=new Map(), collList=[];
+  for(const n of N){
+    if(!n.rhoOk) continue;
+    const c=rhoCol(n.rk), key=qkey(c);
+    let g=coll.get(key);
+    if(!g){ g={col:c, path:new Path2D()}; coll.set(key,g); collList.push(g); }
+    const rr=(n.R-COLLAR_IN)*k;
+    const half=n.slot*0.5;
+    g.path.moveTo(CX+Math.cos(n.ang-half)*rr, CY+Math.sin(n.ang-half)*rr*SQUASH);
+    g.path.ellipse(CX,CY,rr,rr*SQUASH,0,n.ang-half,n.ang+half);
+  }
+  M.collarList=collList;
   dirty=true;
 }
 
@@ -885,45 +1090,51 @@ function draw(ts){
   const t0=performance.now();
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height); ctx.restore();
-  const N=M.nodes, PX=M.PX, PY=M.PY;
+  const PX=M.PX, PY=M.PY;
   const ph = motion ? ts/1000 : 0;
-
-  if(SHOW.field) drawReceptorField();
 
   // layer 1 -- anatomical scaffold: constant, never touched by the slider
   ctx.strokeStyle=THEME.scaffold; ctx.lineWidth=1; ctx.setLineDash([]);
   ctx.stroke(M.scaffoldPath);
 
-  // layer 2 -- DESCENDING PREDICTIONS. Every subpath was laid down source-first
+  // layer 2 -- ASCENDING ERROR RETURN. Constant; it is the anatomy.
+  ctx.lineCap='round';
+  for(const g of M.GE.list){
+    ctx.setLineDash([2.6,9]); ctx.lineDashOffset=-ph*54;
+    ctx.strokeStyle=withA(g.col, THEME.dark?0.42:0.34); ctx.lineWidth=g.w; ctx.stroke(g.path);
+    ctx.fillStyle=withA(g.col, THEME.dark?0.62:0.58); ctx.fill(g.head);
+  }
+  // layer 3 -- DESCENDING PREDICTIONS. Every subpath was laid down source-first
   // (moveTo at the higher-level node), so a negative and falling lineDashOffset
-  // marches the dashes source -> target. For every non-inverted edge that is
-  // apex -> surface, which assertDirection() checks against the node radii at
-  // load time. Level inversions are drawn dotted, thin and desaturated.
+  // marches the dashes source -> target, which assertDirection() checks against
+  // the node radii at load time. Level inversions are drawn dotted and faint.
   ctx.lineCap='butt';
   for(const g of M.GP.list){
     if(g.inv){ ctx.setLineDash([1.6,4.4]); ctx.lineDashOffset=-ph*15; }
-    else     { ctx.setLineDash([16,7]);    ctx.lineDashOffset=-ph*26; }
-    ctx.strokeStyle=withA(g.col, g.inv?0.34:0.60); ctx.lineWidth=g.w; ctx.stroke(g.path);
-    ctx.fillStyle=withA(g.col, g.inv?0.40:0.85); ctx.fill(g.head);
-  }
-  // layer 3 -- ASCENDING PREDICTION ERRORS: discrete pulses, laid down target-
-  // last so the same falling offset marches them surface -> apex.
-  ctx.lineCap='round';
-  for(const g of M.GE.list){
-    if(g.inv){ ctx.setLineDash([1.6,6.4]); ctx.lineDashOffset=-ph*32; }
-    else     { ctx.setLineDash([3.4,13]);  ctx.lineDashOffset=-ph*64; }
-    ctx.strokeStyle=withA(g.col, g.inv?0.40:0.88); ctx.lineWidth=g.w; ctx.stroke(g.path);
-    ctx.fillStyle=withA(g.col, g.inv?0.46:0.95); ctx.fill(g.head);
+    else     { ctx.setLineDash([15,7]);    ctx.lineDashOffset=-ph*26; }
+    ctx.strokeStyle=withA(g.col, g.inv?(THEME.dark?0.34:0.30):(THEME.dark?0.62:0.58));
+    ctx.lineWidth=g.w; ctx.stroke(g.path);
+    // Arrowheads carry the direction in a still frame, so they are opaque in
+    // both themes -- a translucent head disappears over the scaffold on white.
+    ctx.fillStyle=withA(g.col, g.inv?0.55:(THEME.dark?0.90:0.95)); ctx.fill(g.head);
   }
   ctx.setLineDash([]); ctx.lineCap='butt'; ctx.lineDashOffset=0;
 
-  // prior halos -- stroked rings, so they never read as the filled disc
-  const haloA=0.30*Math.min(1, M.sizeK+0.16);
-  for(const g of M.haloList){
-    ctx.strokeStyle=withA(g.col, haloA); ctx.lineWidth=g.w; ctx.stroke(g.path);
-  }
+  // The receptor collar sits ON TOP of the traffic. It is an input, not an
+  // output: at low precision two thousand edges cross the gutter it lives in,
+  // and underneath them it would disappear exactly when the figure most needs
+  // it read.
+  if(SHOW.collar) drawCollar();
+
   // nodes
   for(const g of M.dotList){ ctx.fillStyle=g.col; ctx.fill(g.path); }
+  // a parcel with no PET signal is drawn hollow, so "no measurement" cannot be
+  // mistaken for "measured zero"
+  ctx.lineWidth=1.1;
+  for(const n of M.hollow){
+    ctx.strokeStyle=n.col;
+    ctx.beginPath(); ctx.arc(PX[n.i],PY[n.i],n.nr,0,Math.PI*2); ctx.stroke();
+  }
 
   if(hoverRing>=0){
     ctx.lineWidth=2.6;
@@ -939,161 +1150,76 @@ function draw(ts){
     ctx.beginPath(); ctx.arc(PX[i],PY[i],hoverNode.nr+5.5,0,Math.PI*2); ctx.stroke();
   }
 
-  drawInjection(ts);
+  drawCascade(ts);
   drawApex();
   drawSectorLabels();
-  drawDirectionKey();
-
-  drawPenetration();
-  if(SHOW.bars) drawBars(); else { drawFooter(drawCards()+26); }
+  drawRhoBar();
+  drawKey();
+  drawPrecisionRow();
+  drawLadder();
+  drawDynamics();
 
   perf.innerHTML = hudHTML(performance.now()-t0);
 }
 
-/* ---------- the HUD ------------------------------------------------------
-   A toggle that is ON with an empty layer must not read the same as a toggle
-   that is broken, so the HUD always says which of the two it is looking at.
-   nP / nE are survivor counts from the model and do not move when a toggle
-   is flipped -- see regeom(). */
-function layerLine(name, on, count, extra, emptyWhy){
-  if(count===0) return name+': '+(on?'on':'off')+' \u00b7 <b>0 surviving</b> at \u03c0='+
-                       Math.round(precision*100)+' \u2014 '+emptyWhy;
-  if(!on) return name+': <b>off</b> \u00b7 '+count+' surviving, not drawn';
-  return name+': on \u00b7 '+count+(extra?' '+extra:'');
-}
 function hudHTML(ms){
-  const deadRing=Math.max(0,Math.min(3,Math.floor(S.depth)));
-  // FIX 4. The prediction counter is EDGES DRAWN, and it is not monotone in pi
-  // because it sums two populations that move in opposite directions: the
-  // anatomical scaffold subset shrinks as pi falls, while the off-anatomy pool
-  // recruited by drug strength grows as (1 - pi)^2. Only the anatomical half is
-  // "edges carrying prediction down the hierarchy", and only it falls
-  // monotonically. Both halves are printed rather than silently summed.
-  const pred=layerLine('pred', SHOW.pred, M.nP,
-                       '= '+M.nPanat+' anat + '+M.nProut+' recruited',
-                       'every prior has collapsed below the \u03c0 cull');
-  const err =layerLine('err',  SHOW.err,  M.nE, '',
-                       'all residuals explained at ring '+deadRing);
   const inv = SHOW.hideInv
-    ? M.nCrossOn+' cross-ring \u00b7 <b>'+M.nInvHid+' inversions hidden</b>'
-    : M.nCrossOn+' cross-ring \u00b7 '+M.nInvOn+' inversions';
-  return M.nodes.length+' nodes \u00b7 '+inv+' \u00b7 '+ms.toFixed(1)+' ms<br>'+
-         pred+' \u00b7 '+err;
+    ? M.nInvHid+' inversions hidden'
+    : M.nInvOn+' of '+M.nCrossOn+' drawn cross-level edges are T1w/T2w inversions';
+  return M.nodes.length+' nodes · '+M.nP+' prediction edges ('+M.nLat+
+         ' lateral) · '+M.nE+' return paths · '+ms.toFixed(1)+' ms<br>'+
+         inv+' · mean '+(S.nEdge/M.nodes.length).toFixed(2)+
+         ' targets/node · drive ×'+(S.drive/M.nodes.length).toFixed(2)+
+         ' · weight/target ×'+S.perTarget.toFixed(2);
 }
 
-/* ---------- FIX 6: the receptor field ----------------------------------
-   Reference arcs first (under the bars), then the bars, then the top-decile
-   caps, then the colourbar in real BPnd units.
-
-   On iso-contours: a true 2-D contour over this diagram would be a fabrication.
-   The radial axis here is Mesulam class -- four discrete rings -- and the
-   angular axis is the Margulies gradient. Neither is space, so there is no
-   continuous rho field between rings to contour. The honest equivalent of an
-   iso-contour on a circular bar chart is a reference arc at that value, which
-   is what these are: the 75th and 90th percentile of rho, drawn per ring as
-   thin strokes, never as filled bands. */
-function drawReceptorField(){
-  const k=contraction();
-  ctx.lineCap='butt';
-  [[RHO.p75,0],[RHO.p90,1]].forEach(([q,strong])=>{
-    ctx.strokeStyle=withA(THEME.fg, strong?0.42:0.22);
-    ctx.lineWidth=strong?0.9:0.7;
-    ctx.setLineDash(strong?[]:[2,3]);
-    for(let r=0;r<4;r++){
-      if(!M.byRing[r].length) continue;
-      const rr=(RADII[r]+BAR_GAP+BAR_MAX*q)*k;
-      ctx.beginPath(); ctx.ellipse(CX,CY,rr,rr*SQUASH,0,0,Math.PI*2); ctx.stroke();
-    }
-  });
-  ctx.setLineDash([]);
-  ctx.lineWidth=1.6;
-  for(const g of M.discList){
-    ctx.strokeStyle=g.col; ctx.stroke(g.path);
-    ctx.fillStyle=g.col;   ctx.fill(g.cap);
-  }
-  drawRhoBar();
+function drawCollar(){
+  ctx.setLineDash([]); ctx.lineCap='butt'; ctx.lineWidth=COLLAR_W;
+  for(const g of M.collarList){ ctx.strokeStyle=g.col; ctx.stroke(g.path); }
 }
-/* The colourbar. In BPnd, not in percentile, because the scientific claim the
-   layer is making is about receptor density and the reader has to be able to
-   see how narrow the measured spread actually is. */
+
+/* The colourbar. The collar is coloured by PERCENTILE, because the measured
+   spread is narrow enough that a linear encoding of it reads as one flat
+   colour on a projector. The axis is therefore percentile, with BPnd printed
+   at the deciles so the real spacing is still on the page. */
 function drawRhoBar(){
-  // Everything here lives in the clear strip above the diagram (the ring circle
-  // starts at CY - RADII[0]*SQUASH = 77) and left of the readout column at
-  // RX = 420. Explicit coordinates rather than running offsets, because the
-  // running-offset version is what walked into both neighbours.
-  const X=14, W=196, BY=26, BH=9;
-  const T=12, PL=22, LB=52, AX=X+W+14, A1=24, A2=36, A3=48;
-  const span=Math.max(1e-6, RHO.hi-RHO.lo);
-  const at = v => X + W*(v-RHO.lo)/span;
-
+  const X=14, W=182, BY=27, BH=8;
   ctx.textAlign='left';
-  ctx.fillStyle=THEME.dim; ctx.font='700 9px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('5-HT2A \u00b7 Cimbi-36 BP\u2099\u1d48 \u00b7 bar length \u221d this axis', X, T);
-
-  for(let i=0;i<W;i++){
-    ctx.fillStyle=rhoCol(i/(W-1));
-    ctx.fillRect(X+i, BY, 1.5, BH);
-  }
+  ctx.fillStyle=THEME.dim; ctx.font=fnt(9,'700');
+  ctx.fillText('5-HT2A COLLAR · percentile of Cimbi-36 BPₙᵈ', X, 13);
+  for(let i=0;i<W;i++){ ctx.fillStyle=rhoCol(i/(W-1)); ctx.fillRect(X+i, BY, 1.5, BH); }
   ctx.strokeStyle=THEME.edge; ctx.lineWidth=1;
   ctx.strokeRect(X-0.5, BY-0.5, W+1, BH+1);
-
-  // The two levels the reference arcs are drawn at. They are only ~2.3 BPnd
-  // apart, so they share one label instead of overprinting each other.
-  ctx.strokeStyle=withA(THEME.fg,0.75); ctx.lineWidth=1;
-  [RHO.p75raw, RHO.p90raw].forEach(v=>{
-    ctx.beginPath(); ctx.moveTo(at(v), BY-2); ctx.lineTo(at(v), BY+BH+2); ctx.stroke();
-  });
-  ctx.fillStyle=THEME.faint; ctx.font='8.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.textAlign='center';
-  ctx.fillText('p75 \u00b7 p90', (at(RHO.p75raw)+at(RHO.p90raw))/2, PL);
-
-  // heteromodal median tick, and the span the visual wedge actually covers
-  ctx.strokeStyle=PAL.ring[2]; ctx.lineWidth=2.2;
-  ctx.beginPath(); ctx.moveTo(at(RHO.heteroMed), BY+BH); ctx.lineTo(at(RHO.heteroMed), BY+BH+6); ctx.stroke();
-  // visual-wedge extent, marked INSIDE the bar. A bracket hung underneath it
-  // overlapped the max-value label, and there is no room below to move either.
-  ctx.strokeStyle=withA(THEME.dark?'#ffffff':'#101318',0.85); ctx.lineWidth=1.2;
-  [RHO.visLo, RHO.visHi].forEach(v=>{
-    ctx.beginPath(); ctx.moveTo(at(v), BY+BH-5); ctx.lineTo(at(v), BY+BH); ctx.stroke();
-  });
-
-  ctx.font='8.5px ui-sans-serif,system-ui,sans-serif'; ctx.fillStyle=THEME.faint;
-  ctx.textAlign='left';  ctx.fillText(RHO.lo.toFixed(0), X, LB);
-  ctx.textAlign='right'; ctx.fillText(RHO.hi.toFixed(0)+' BP\u2099\u1d48', X+W, LB);
+  ctx.font=fnt(8.5); ctx.fillStyle=THEME.faint;
+  const tick=(f,lab,al)=>{ const x=X+W*f;
+    ctx.strokeStyle=withA(THEME.fg,0.5); ctx.beginPath();
+    ctx.moveTo(x,BY+BH); ctx.lineTo(x,BY+BH+3); ctx.stroke();
+    ctx.textAlign=al; ctx.fillText(lab, x, BY+BH+12); };
+  tick(0.10, RHO.p10.toFixed(0), 'left');
+  tick(0.50, RHO.med.toFixed(0), 'center');
+  tick(0.90, RHO.p90.toFixed(0)+' BPₙᵈ', 'right');
   ctx.textAlign='left';
-
-  // ONE mode, not two. A Gaussian KDE over the 358 valid parcels has a single
-  // peak near 56 BPnd at every bandwidth >= 0.25; the "two peaks" this layer was
-  // meant to show are not in the data. The transmodal core does sit high and the
-  // visual wedge does span most of the range, so both are marked -- as what they
-  // are, a tick and a span, not as peaks.
-  ctx.fillStyle=PAL.ring[2];
-  ctx.fillText('transmodal core: heteromodal median ' + RHO.heteroMed.toFixed(0), AX, A1);
-  ctx.fillStyle=THEME.dim;
-  ctx.fillText('visual wedge spans ' + RHO.visLo.toFixed(0) + '\u2013' + RHO.visHi.toFixed(0), AX, A2);
-  ctx.fillStyle=THEME.faint;
-  ctx.fillText('single-moded (median ' + RHO.med.toFixed(0) + ') \u2014 not two peaks', AX, A3);
+  if(RHO.nBad){
+    ctx.fillStyle=THEME.faint; ctx.font=fnt(8.5);
+    ctx.fillText(RHO.nBad+' parcel'+(RHO.nBad===1?'':'s')+
+      ' with no cortical signal: gap in the band, hollow node', X, BY+BH+24);
+  }
 }
 
-/* ---------- Panel A: the ring diagram furniture ------------------------- */
+/* ---------- Panel A: the ring furniture --------------------------------- */
 function drawApex(){
   ctx.fillStyle=withA(THEME.dark?'#0f1116':'#ffffff', 0.93);
-  ctx.beginPath(); ctx.arc(CX, CY, 27, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(CX, CY, 26, 0, Math.PI*2); ctx.fill();
   ctx.textAlign='center';
-  ctx.fillStyle=THEME.dim; ctx.font='700 9.5px ui-sans-serif,system-ui,sans-serif';
+  ctx.fillStyle=THEME.dim; ctx.font=fnt(9.5,'700');
   ctx.fillText('APEX', CX, CY-2);
-  ctx.fillStyle=THEME.faint; ctx.font='8.5px ui-sans-serif,system-ui,sans-serif';
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(8.5);
   ctx.fillText('ring 3 is here', CX, CY+9);
   ctx.textAlign='left';
 }
 function drawSectorLabels(){
   const k=contraction(), on = hoverRing===0||hoverRing===1;
-  // FIX 7. Sensory stream, demoted. One thin arc per wedge at its own radius
-  // outside the diagram, plus the wedge label -- a secondary channel that can
-  // be read when you want it and ignored when you do not. It no longer competes
-  // with the node fill, which now carries Mesulam type and nothing else.
-  ctx.setLineDash([]); ctx.lineCap='butt';
-  ctx.lineWidth=2.6;
+  ctx.setLineDash([]); ctx.lineCap='butt'; ctx.lineWidth=2.6;
   const rr=ARC_R*k;
   for(const sc of M.sectors){
     if(!sc.n) continue;
@@ -1102,7 +1228,7 @@ function drawSectorLabels(){
     ctx.beginPath(); ctx.ellipse(CX,CY,rr,rr*SQUASH,0,sc.a0,sc.a1); ctx.stroke();
   }
   ctx.setLineDash([]);
-  ctx.font='700 9px ui-sans-serif,system-ui,sans-serif'; ctx.textAlign='center';
+  ctx.font=fnt(9,'700'); ctx.textAlign='center';
   for(const sc of M.sectors){
     if(!sc.n) continue;
     const a=(sc.a0+sc.a1)/2, R=LAB_R*k;
@@ -1112,455 +1238,295 @@ function drawSectorLabels(){
     ctx.save(); ctx.translate(x,y);
     let rot=a; if(rot>Math.PI/2||rot<-Math.PI/2) rot+=Math.PI;
     ctx.rotate(rot);
-    lines.forEach((t,i)=>ctx.fillText(t, 0, 3 + (i-(lines.length-1)/2)*10));
+    lines.forEach((t,i)=>ctx.fillText(t, 0, 3 + (i-(lines.length-1)/2)*10*FK));
     ctx.restore();
   }
   ctx.textAlign='left';
 }
-/* ---------- FIX 3: caption as a pure function of computed state ---------
-   Every clause below is read off S and M. Nothing here consults SHOW, so the
-   sentence cannot change because a view toggle changed. */
-function captionLines(){
-  const l1='\u03c0 = '+Math.round(precision*100)+
-           '   \u00b7   mean \u03c0\u1d62 = '+S.piMean.toFixed(2)+
-           '   \u00b7   mean penetration '+S.depth.toFixed(2)+' of 3';
-  const l2=M.nE+' error edge'+(M.nE===1?'':'s')+' surviving   \u00b7   '+
-           M.nP+' prediction edge'+(M.nP===1?'':'s')+' surviving';
-  let l3='';
-  if(M.nE===0)
-    l3='No ascending error survives the cull: every residual is explained at its first node.';
-  else if(M.nP===0)
-    l3='No descending prediction survives the cull: the model has stopped predicting.';
-  else if(S.depth>=2.995)
-    l3='Errors now reach the apex from every idiotypic node.';
-  return [l1,l2,l3];
-}
-/* If this ever fires, the figure is asserting something its own counters deny. */
-function assertCaption(cap){
-  const t=cap[2]||'';
-  if(/No ascending error survives/.test(t) && M.nE>0)
-    console.error('[caption] says no error survives, counter says '+M.nE);
-  if(/No descending prediction survives/.test(t) && M.nP>0)
-    console.error('[caption] says no prediction survives, counter says '+M.nP);
-}
 
-/* ---------- FIX 8: what is actually in the unlabelled wedge -------------
-   The hypothesis was that it is motor. It is not. Every motor parcel carries
-   stream = 'somatomotor' and sits in the SOMATOMOTOR wedge; what is left over
-   is association cortex with no stream assignment at all. Printed so the name
-   can be checked against the data rather than taken on trust. */
-function censusWedge(){
-  const w=PARCELS.filter(p=>(p.ring===0||p.ring===1) &&
-    !((p.stream!==undefined?p.stream:p.modality)));
-  const rows=w.map(p=>({parcel:p.hemi+'_'+p.name, mesulam:PAL.ringNames[p.ring],
-                        division:p.division}))
-              .sort((a,b)=>a.division.localeCompare(b.division)||
-                           a.parcel.localeCompare(b.parcel));
-  const byDiv={}, byClass={};
-  rows.forEach(r=>{ byDiv[r.division]=(byDiv[r.division]||0)+1; });
-  w.forEach(p=>{ const k=PAL.ringNames[p.ring]; byClass[k]=(byClass[k]||0)+1; });
-  console.info('[wedge] "'+MODLABEL['null'].replace('\n',' ')+'" holds '+w.length+
-    ' parcels: '+Object.entries(byClass).map(([k,v])=>v+' '+k).join(', ')+
-    ' \u2014 association cortex, NOT motor');
-  console.info('[wedge] by Glasser division:', byDiv);
-  if(console.table) console.table(rows); else console.info(rows);
-
-  const r0=PARCELS.filter(p=>p.ring===0);
-  const mot=r0.filter(p=>((p.stream!==undefined?p.stream:p.modality))==='somatomotor');
-  console.info('[ring 0] '+r0.length+' idiotypic parcels, '+mot.length+
-    ' of them somatomotor (M1 area 4, 3a/3b/1, premotor 6a/6d/6v/6r/6mp, 55b, FEF, PEF) '+
-    '\u2014 ring 0 is a sensorimotor shell, not a sensory input shell');
-  return {wedge:rows, wedgeByDivision:byDiv, ring0:r0.length, ring0Motor:mot.length};
-}
-
-/* ---------- FIX 1a: load-time direction assertion ----------------------
-   The dash animation is channel-locked to the [hi, lo] ordering that orient()
-   derives from the measured level. This checks that ordering against SCREEN
-   RADII, which is the thing a viewer actually sees. Level inversions and
-   within-ring edges are exempt by definition -- an inversion is precisely an
-   edge whose measured direction disagrees with radius. */
-function assertDirection(){
-  const N=M.nodes, ex=[]; let checked=0, bad=0;
-  for(const [hi,lo,fl] of M.onEdges.concat(M.offEdges)){
-    if(fl!==E_OUT) continue;
-    checked++;
-    const rSrc=RADII[N[hi].ring], rTgt=RADII[N[lo].ring];
-    if(!(rTgt>rSrc)){
-      bad++;
-      if(ex.length<10) ex.push(N[hi].p.id+' \u2192 '+N[lo].p.id+
-        '  r '+rSrc+' \u2192 '+rTgt);
-    }
-  }
-  if(bad) console.error('[direction] '+bad+' of '+checked+
-    ' non-inverted PREDICTION edges do not advance outward:', ex);
-  else console.info('[direction] ok \u2014 all '+checked+
-    ' non-inverted prediction edges advance apex \u2192 surface (radius increases)');
-  const pairs=Object.entries(M.invPair)
-    .sort((a,b)=>a[0].localeCompare(b[0]))
-    .map(([k,v])=>({pair:k, cross:v.n, inversions:v.inv,
-                    rate:(100*v.inv/v.n).toFixed(1)+'%'}));
-  console.info('[inversions] '+M.nInv+' of '+M.nCross+' cross-ring edges ('+
-    (100*M.nInv/M.nCross).toFixed(1)+'%) are T1w/T2w level inversions');
-  if(console.table) console.table(pairs); else console.info(pairs);
-  return {checked, bad, nCross:M.nCross, nInv:M.nInv, pairs};
-}
-
-/* The one thing that must not be misread: which way is up the hierarchy.
-   This block is also the channel key, so it is drawn in every mode. */
-function drawDirectionKey(){
-  const x=18, y=444;
+/* The one thing that must not be misread: which way is up the hierarchy. */
+function drawKey(){
+  const x=16, y=CH-58-92*FK;      // anchored to the footer, not to the canvas top
   ctx.textAlign='left';
-  ctx.fillStyle=THEME.fg; ctx.font='700 11px ui-sans-serif,system-ui,sans-serif';
+  ctx.fillStyle=THEME.fg; ctx.font=fnt(10.5,'700');
   ctx.fillText('THE TWO CHANNELS', x, y);
   const rows=[
-    {lab:'DESCENDING PREDICTION', dir:'high level \u2192 low level   (apex \u2192 surface)',
-     w:'width \u221d \u03c0\u1d62 of the sending node',
+    {lab:'DESCENDING PREDICTION', dir:'high level → low level  (apex → surface)',
+     w:'one line per target · width = that target’s share of the drive',
      col:PAL.transmodal, dash:[13,6], lw:2.0, sign:+1, cap:'butt'},
-    {lab:'ASCENDING ERROR', dir:'low level \u2192 high level   (surface \u2192 apex)',
-     w:'width \u221d error magnitude arriving',
-     col:boost(PAL.ring[0], THEME.dark), dash:[3,7], lw:2.4, sign:-1, cap:'round'},
-    // The exception, given its own key row rather than a paragraph nobody reads.
-    {lab:'LEVEL INVERSION', dir:'T1w/T2w disagrees with Mesulam order',
-     w:M.nInv+' of '+M.nCross+' cross-ring edges ('+
-       Math.round(100*M.nInv/Math.max(1,M.nCross))+'%) \u2014 measured direction kept, drawn faint',
+    {lab:'ASCENDING ERROR RETURN', dir:'low level → high level  (surface → apex)',
+     w:'the anatomy, constant · click an outer node to send one error up it',
+     col:boost(PAL.ring[0], THEME.dark), dash:[2.6,7], lw:1.6, sign:-1, cap:'round'},
+    {lab:'LEVEL INVERSION', dir:'T1w/T2w disagrees with the Mesulam order',
+     w:M.nInvOn+' of '+M.nCrossOn+' drawn cross-level edges — measured direction kept, drawn faint',
      col:desat(PAL.transmodal, THEME.dark), dash:[1.6,4.4], lw:1.4, sign:+1, cap:'butt'}
   ];
   rows.forEach((r,i)=>{
-    const yy=y+19+i*26;
+    const yy=y+18*FK+i*25*FK;
     ctx.strokeStyle=r.col; ctx.lineWidth=r.lw;
     ctx.setLineDash(r.dash); ctx.lineCap=r.cap;
-    ctx.beginPath(); ctx.moveTo(x,yy-3.5); ctx.lineTo(x+34,yy-3.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x,yy-3.5); ctx.lineTo(x+32,yy-3.5); ctx.stroke();
     ctx.setLineDash([]); ctx.lineCap='butt';
-    const ax = r.sign>0 ? x+34 : x;
+    const ax = r.sign>0 ? x+32 : x;
     ctx.fillStyle=r.col; ctx.beginPath();
     ctx.moveTo(ax+r.sign*5, yy-3.5); ctx.lineTo(ax-r.sign*2.5, yy-7); ctx.lineTo(ax-r.sign*2.5, yy); ctx.fill();
-    ctx.fillStyle=THEME.dim; ctx.font='700 9.5px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillText(r.lab, x+45, yy);
-    ctx.fillStyle=THEME.faint; ctx.font='9.5px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillText(r.dir, x+196, yy);
-    ctx.fillText(r.w,   x+45, yy+11);
+    ctx.fillStyle=THEME.dim; ctx.font=fnt(9.5,'700');
+    ctx.fillText(r.lab, x+42, yy);
+    ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
+    ctx.fillText(r.dir, x+188*FK, yy);
+    ctx.fillText(r.w,   x+42, yy+10.5*FK);
   });
-  ctx.fillStyle=THEME.faint; ctx.font='9.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('node fill = Mesulam type (same hex on the brain)   \u00b7   ' +
-               'radius \u221d \u03c4   \u00b7   halo \u221d 1/\u221a\u03c0\u1d62   \u00b7   ' +
-               'outer arc = sensory stream', x, y+101);
-
-  // ---- FIX 3 -----------------------------------------------------------
-  // The caption is a pure function of computed model state: mean pi_i, the
-  // surviving counts and mean penetration depth. It is NOT keyed to which
-  // toggle is active, and assertCaption() fires if it ever claims none of
-  // something the on-screen counter reports as nonzero. Three short lines
-  // rather than one long one, because one long one ran under the right column.
-  const cap=captionLines();
-  ctx.fillStyle=THEME.dim; ctx.font='600 9.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText(cap[0], x, y+117);
-  ctx.fillStyle=THEME.faint; ctx.font='9.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText(cap[1], x, y+129);
-  if(cap[2]) ctx.fillText(cap[2], x, y+141);
-  assertCaption(cap);
-  ctx.fillStyle=THEME.faint; ctx.font='9.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('rings contract '+Math.round((1-contraction())*100)+
-               '% \u2014 the collapse is in the traffic, not the geometry', x, CH-8);
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
+  ctx.fillText('node fill = Mesulam type (same hex on the brain)  ·  radius ∝ τ  ·  ' +
+               'collar = 5-HT2A  ·  outer arc = sensory stream', x, y+96*FK);
 }
 
-/* ---------- Panel A right column: the headline readout ------------------ */
-function drawPenetration(){
-  const y=36;
+/* ---------- the headline: four numbers, not one ------------------------- */
+function drawPrecisionRow(){
+  const y=30;
   ctx.textAlign='left';
-  ctx.fillStyle=THEME.fg; ctx.font='700 11.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('PENETRATION DEPTH', RX, y);
-  ctx.fillStyle=THEME.faint; ctx.font='10.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('mean ring reached before an error falls below \u03b8 = '+
-               P.THETA.toFixed(2), RX, y+16);
+  ctx.fillStyle=THEME.fg; ctx.font=fnt(12.5,'700');
+  ctx.fillText('5-HT2A-DEPENDENT PRECISION', RX, y);
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
+  ctx.fillText('how concentrated each node’s descending output still is, by ring.',
+               RX, y+14*FK);
+  ctx.fillText('1.00 = the π = 100 state, the tightest it ever gets. Lower = the same drive, spread wider.',
+               RX, y+25*FK);
 
-  const dep=S.depth;
-  // Deepest class reached is the FLOOR, not the round: 2.21 means the error got
-  // 21% of the way out of ring 2, so ring 2 is the deepest class it fully
-  // reached. The apex is named separately because "2.21 of 3 . apex heteromodal"
-  // read as though heteromodal were the apex. It is not; ring 3 is.
-  const ri=Math.max(0,Math.min(3,Math.floor(dep)));
-  ctx.fillStyle=THEME.dim; ctx.font='600 10.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('deepest class reached: '+PAL.ringNames[ri], RX, y+34);
-  const wDeep=ctx.measureText('deepest class reached: '+PAL.ringNames[ri]).width;
-  ctx.fillStyle=THEME.faint; ctx.font='10.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('\u00b7  apex = '+PAL.ringNames[3]+' (ring 3)', RX+wDeep+8, y+34);
-
-  ctx.fillStyle=THEME.faint; ctx.font='10.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('reaches ring', RX, y+50);
-  ctx.fillStyle=PAL.ring[ri];
-  ctx.font='700 44px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText(dep.toFixed(2), RX, y+90);
-  const wNum=ctx.measureText(dep.toFixed(2)).width;
-  ctx.fillStyle=THEME.faint; ctx.font='11px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('of 3', RX+wNum+12, y+82);
-
-  // scale, depth 1 .. 3. The marker sits ABOVE the bar, in the 14px of clear
-  // ground between the big number's baseline and the bar itself.
-  const by=y+104, bh=7;
-  ctx.fillStyle=THEME.edge; ctx.fillRect(RX, by, RW, bh);
-  for(let r=1;r<=3;r++){
-    const x=RX+RW*(r-1)/2;
-    ctx.fillStyle=PAL.ring[r];
-    ctx.fillRect(Math.min(RX+RW-2,x), by-3, 2, bh+6);
-    ctx.fillStyle=THEME.faint; ctx.font='9.5px ui-sans-serif,system-ui,sans-serif';
-    ctx.textAlign = r===1?'left':(r===3?'right':'center');
-    ctx.fillText(r+' '+PAL.ringNames[r], x, by+17);
-  }
-  ctx.textAlign='left';
-  const mx=RX+RW*(Math.min(3,Math.max(1,dep))-1)/2;
-  ctx.fillStyle=PAL.ring[ri];
-  ctx.beginPath(); ctx.moveTo(mx, by-5); ctx.lineTo(mx-5, by-12); ctx.lineTo(mx+5, by-12); ctx.fill();
-  ctx.fillRect(mx-1.2, by, 2.4, bh);
-}
-
-/* ---------- Panel A right column: four generative models ---------------- */
-function relaxOrder(){
-  const rs=[0,1,2,3].filter(r=>M.exemplar[r]);
-  const sg=r=>S.sig[M.exemplar[r].i];
-  const spread=Math.max(...rs.map(sg))-Math.min(...rs.map(sg));
-  const ord=rs.slice().sort((x,y)=>sg(y)-sg(x));
-  const rank={}; ord.forEach((r,k)=>rank[r]=k+1);
-  return {ord, rank, spread};
-}
-function drawCards(){
-  const y0=174, CWID=(RW-3*8)/4, CH2=150;
-  const RO=relaxOrder();
-  const sg=S.sig, allS=M.nodes.map(n=>sg[n.i]);
-  const sLo=Math.min(...allS), sHi=Math.max(...allS);
-  ctx.textAlign='left';
-  ctx.fillStyle=THEME.fg; ctx.font='700 11.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('GENERATIVE MODELS', RX, y0);
-  ctx.fillStyle=THEME.faint; ctx.font='10.5px ui-sans-serif,system-ui,sans-serif';
-  wrap('\u03c4 = how slowly this node updates (measured, fixed). Curve = how tightly it ' +
-       'believes now; dashed outline = the same node at \u03c0 = 100.', RX, y0+15, RW, 13);
-  ctx.font='600 10.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillStyle=THEME.dim;
-  ctx.fillText(RO.spread<0.01
-      ? 'widest prior first:  all four equal at \u03c0 = 100'
-      : 'widest prior first:  ' + RO.ord.map(r=>RING_ABBR[r]).join('  \u203a  ') +
-        '   (rings ' + RO.spread.toFixed(2) + '\u03c3 apart)',
-    RX, y0+44);
-
-  const top=y0+56;
+  const cw=RW/4, top=y+42*FK;
   for(let r=0;r<4;r++){
-    const n=M.exemplar[r]; const x=RX+r*(CWID+8);
-    ctx.strokeStyle=THEME.edge; ctx.lineWidth=1;
-    ctx.strokeRect(x+.5, top+.5, CWID-1, CH2-1);
-    if(!n) continue;
-    const sig=sg[n.i];
-    ctx.fillStyle=PAL.ring[r]; ctx.fillRect(x, top, CWID, 3);
-    ctx.fillStyle=hoverRing===r?THEME.fg:THEME.dim;
-    ctx.font='700 10px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillText(RING_ABBR[r], x+8, top+16);
-    if(RO.spread>=0.01){
-      ctx.fillStyle=THEME.faint; ctx.font='700 9px ui-sans-serif,system-ui,sans-serif';
-      ctx.textAlign='right'; ctx.fillText('#'+RO.rank[r], x+CWID-8, top+16); ctx.textAlign='left';
-    }
-    ctx.fillStyle=THEME.faint; ctx.font='9.5px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillText(clip(n.p.hemi+'_'+n.p.name, CWID-16), x+8, top+28);
-
-    // tau: measured, does not move with the slider. This is the one thing that
-    // genuinely separates the four rings, so it gets a bar you can measure.
-    const bw=CWID-16, tv=n.tauRaw;
-    ctx.font='9.5px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillStyle=THEME.faint; ctx.fillText('\u03c4', x+8, top+42);
-    ctx.textAlign='right'; ctx.font='600 9.5px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillStyle=THEME.dim;
-    ctx.fillText(tv!==null?tv.toFixed(1)+' ms':'\u2014', x+CWID-8, top+42);
-    ctx.textAlign='left';
-    ctx.fillStyle=THEME.edge; ctx.fillRect(x+8, top+46, bw, 5);
-    if(tv!==null && M.tauHi>M.tauLo){
-      ctx.fillStyle=PAL.ring[r];
-      ctx.fillRect(x+8, top+46, bw*(tv-M.tauLo)/(M.tauHi-M.tauLo), 5);
-    }
-
-    drawGauss(x+8, top+58, bw, 54, sig, n.col);
-
-    ctx.font='9.5px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillStyle=THEME.faint; ctx.fillText('\u03c3', x+8, top+124);
-    ctx.textAlign='right'; ctx.font='600 9.5px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillStyle=PAL.ring[r]; ctx.fillText(sig.toFixed(2), x+CWID-8, top+124);
-    ctx.textAlign='left'; ctx.font='9.5px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillStyle=THEME.faint; ctx.fillText('vs \u03c0=100', x+8, top+137);
-    ctx.textAlign='right'; ctx.font='600 9.5px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillStyle=sig>1.02?PAL.transmodal:THEME.faint;
-    ctx.fillText('\u00d7'+sig.toFixed(1), x+CWID-8, top+137);
-    ctx.textAlign='left';
+    const x=RX+r*cw, v=S.ring[r];
+    ctx.fillStyle = hoverRing===r ? THEME.fg : THEME.faint;
+    ctx.font=fnt(9.5,'700');
+    ctx.fillText(RING_ABBR[r], x, top+10*FK);
+    ctx.fillStyle=PAL.ring[r]; ctx.font=fnt(39,'700');
+    ctx.fillText(v===null?'—':v.toFixed(2), x, top+51*FK);
   }
-  // The four cards look alike because they ARE alike. Say where the variation is.
-  ctx.fillStyle=THEME.faint; ctx.font='9.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('\u03c4 bar scale ' + M.tauLo.toFixed(0) + '\u2013' + M.tauHi.toFixed(0) +
-               ' ms', RX, top+CH2+14);
-  ctx.textAlign='right'; ctx.fillText('inner / apex \u2192', RX+RW, top+CH2+14); ctx.textAlign='left';
-  // Return the real bottom edge. The injection block used to be nailed to a
-  // hardcoded y=452 that this paragraph had already grown past, which is why
-  // the two collided in every state.
-  return wrap('All four relax together: \u03c1 enters \u03c0\u1d62 multiplied by drug strength, and ' +
-       'the rings\u2019 5-HT2A medians barely differ. The spread is between nodes \u2014 ' +
-       '\u03c3 runs ' + sLo.toFixed(2) + '\u2013' + sHi.toFixed(2) + ' across all ' +
-       M.nodes.length + '.', RX, top+CH2+30, RW, 12.5);
-}
-function clip(t,w){
-  ctx.font='9.5px ui-sans-serif,system-ui,sans-serif';
-  if(ctx.measureText(t).width<=w) return t;
-  while(t.length>2 && ctx.measureText(t+'\u2026').width>w) t=t.slice(0,-1);
-  return t+'\u2026';
-}
-/* Area-conserving Gaussian: peak height is 1/sigma, so a relaxed prior does not
-   just get wider, it visibly flattens. The dashed outline is the same node at
-   pi = 100 -- without a fixed reference, four curves that flatten together look
-   like four curves that are not moving at all. */
-function drawGauss(x,y,w,h,sigma,col){
-  const X=3.4, n=52;
-  const yOf=(i,sd)=>{ const u=-X+2*X*i/n;
-    return y+h-h*Math.min(1, Math.exp(-0.5*(u/sd)*(u/sd))/sd); };
-  ctx.beginPath(); ctx.moveTo(x, y+h);
-  for(let i=0;i<=n;i++) ctx.lineTo(x+w*i/n, yOf(i,sigma));
-  ctx.lineTo(x+w, y+h); ctx.closePath();
-  ctx.fillStyle=withA(col, 0.22); ctx.fill();
-  ctx.beginPath();
-  for(let i=0;i<=n;i++){ const px=x+w*i/n, py=yOf(i,sigma); i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
-  ctx.strokeStyle=col; ctx.lineWidth=1.4; ctx.stroke();
-  if(sigma>1.015){
-    ctx.beginPath();
-    for(let i=0;i<=n;i++){ const px=x+w*i/n, py=yOf(i,1); i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
-    ctx.strokeStyle=THEME.faint; ctx.lineWidth=1; ctx.setLineDash([2.5,2.5]);
-    ctx.stroke(); ctx.setLineDash([]);
-  }
+  // One shared axis. At pi = 100 all four markers sit stacked on 1.00; as the
+  // slider falls they fan left at different rates, and the FANNING is the
+  // event. A per-ring bar chart would say the same thing four times over and
+  // would be the disruption bars back again in another costume.
+  const ay=top+70*FK, aw=RW-34, ax=RX;
   ctx.strokeStyle=THEME.edge; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(x,y+h+.5); ctx.lineTo(x+w,y+h+.5); ctx.stroke();
-}
-
-/* ---------- Panel A right column: injection readout --------------------- */
-let inject=null, injectMsg=null;
-function drawFooter(yTop){
-  const y=Math.min(CH-112, Math.max(424, yTop));
+  ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax+aw,ay); ctx.stroke();
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(8.5);
+  [[0,'0','left'],[0.5,'0.5','center'],[1,'1.00','right']].forEach(([f,t,al])=>{
+    const x=ax+aw*f;
+    ctx.strokeStyle=THEME.edge; ctx.beginPath(); ctx.moveTo(x,ay); ctx.lineTo(x,ay+4); ctx.stroke();
+    ctx.textAlign=al; ctx.fillText(t, x, ay+13*FK);
+  });
   ctx.textAlign='left';
-  ctx.fillStyle=THEME.fg; ctx.font='700 11.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('SINGLE ERROR INJECTION', RX, y);
-  ctx.fillStyle=THEME.faint; ctx.font='10.5px ui-sans-serif,system-ui,sans-serif';
-  if(!injectMsg){
-    wrap('Click any node on the outermost ring. One unit of prediction error is released ' +
-         'at its output and climbs inward, losing (1 \u2212 \u03c0\u1d62) of itself at every node it ' +
-         'passes, until it drops below \u03b8 and is explained away. At \u03c0 = 100 it should die ' +
-         'at ring 1. At \u03c0 = 0 it should reach the core.', RX, y+18, RW, 14);
-  } else {
-    ctx.fillStyle=THEME.dim; ctx.font='600 11px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillText(injectMsg.head, RX, y+19);
-    ctx.fillStyle=THEME.faint; ctx.font='10.5px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillText(injectMsg.hops, RX, y+35);
-    ctx.fillStyle=injectMsg.col; ctx.font='700 11.5px ui-sans-serif,system-ui,sans-serif';
-    wrap(injectMsg.verdict, RX, y+55, RW, 15);
-    ctx.fillStyle=THEME.faint; ctx.font='10px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillText('click another outer node to fire again', RX, y+92);
+  // Markers carry no text: the four big numbers above are in the same four
+  // colours, and at pi = 100 all four markers land on 1.00, where any label
+  // would be on top of the next one.
+  for(let r=0;r<4;r++){
+    const v=S.ring[r]; if(v===null) continue;
+    const x=ax+aw*clamp01(v);
+    ctx.fillStyle=PAL.ring[r];
+    ctx.beginPath();
+    ctx.moveTo(x, ay-1.5); ctx.lineTo(x-5, ay-10); ctx.lineTo(x+5, ay-10); ctx.fill();
+    ctx.fillRect(x-1.1, ay-1.5, 2.2, 5.5);
   }
+  ctx.fillStyle=THEME.dim; ctx.font=fnt(10,'600');
+  ctx.fillText('mean '+(S.nEdge/M.nodes.length).toFixed(1)+' targets per node   ·   ' +
+               'total drive ×'+(S.drive/M.nodes.length).toFixed(2)+'   ·   ' +
+               'weight per target ×'+S.perTarget.toFixed(2), RX, ay+30*FK);
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
+  ctx.fillText('More targets, each one weaker. The drive rises; what falls is the concentration.',
+               RX, ay+43*FK);
 }
 
-function drawInjection(ts){
-  if(!inject) return;
-  const st=inject.steps, PX=M.PX, PY=M.PY;
-  const nHop=st.length-1;
-  const el=Math.max(0, ts-inject.t0);   // never index backwards off the trace
-  const travel=Math.min(el, nHop*P.HOP_MS);
-  const done=el>=nHop*P.HOP_MS;
-  const hold=el-(nHop*P.HOP_MS);
-  if(done && hold>P.DWELL_MS+P.FADE_MS){ inject=null; return; }
-  const fade = done && hold>P.DWELL_MS ? 1-(hold-P.DWELL_MS)/P.FADE_MS : 1;
+/* ---------- the generation ladder ---------------------------------------
+   One row per hop, one mark per node activated in that generation. The
+   audience watches whether the family grows, holds, or dies out; that is the
+   branching ratio as an object, and it needs no number to read. The panel
+   exists only while a cascade is running -- at rest it is the invitation. */
+let casc=null, cascMsg=null;
+function drawTriptych(y){
+  ctx.textAlign='left';
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
+  let yy = wrap('The same node clicked at three slider positions \u2014 the live slider is not ' +
+                'moved. One row per hop, one mark per parcel, coloured by its Mesulam level.',
+                RX, y+14*FK, RW, 11.5*FK);
+  const cw=RW/3, mr=3.3*FK, rowH=13*FK;
+  // The three captions line up on the tallest ladder rather than on GMAX, so
+  // the block does not leave a hole when no pane runs the full six hops.
+  const maxR=Math.max(...TRIP.panes.map(pn=>pn.rows.length));
+  const top = yy + 16*FK;
+  TRIP.panes.forEach((pane,i)=>{
+    const x=RX+i*cw;
+    ctx.fillStyle=THEME.dim; ctx.font=fnt(10.5,'700');
+    ctx.fillText('\u03c0 = '+pane.pi, x, top);
+    ctx.fillStyle=i===0?THEME.faint:PAL.transmodal; ctx.font=fnt(9.5,'700');
+    ctx.fillText(pane.verdict, x+42*FK, top);
+    for(let g=0; g<pane.rows.length; g++){
+      const ry=top+15*FK+g*rowH;
+      for(let m=0;m<pane.rows[g].length;m++){
+        const px=x+m*(mr*2.3);
+        if(px>x+cw-12) break;              // a row that would overflow its column
+        ctx.fillStyle=PAL.ring[pane.rows[g][m]];
+        ctx.beginPath(); ctx.arc(px, ry, mr, 0, Math.PI*2); ctx.fill();
+      }
+    }
+    const cy=top+15*FK+(maxR+0.6)*rowH;
+    ctx.fillStyle=THEME.dim; ctx.font=fnt(9.5,'600');
+    ctx.fillText(pane.total+' parcels \u00b7 '+pane.hops+' hop'+(pane.hops===1?'':'s'), x, cy);
+    ctx.fillStyle=THEME.faint; ctx.font=fnt(9);
+    ctx.fillText('reached '+PAL.ringNames[pane.deepest], x, cy+11*FK);
+  });
+}
+function drawLadder(){
+  const y=252;
+  ctx.textAlign='left';
+  ctx.fillStyle=THEME.fg; ctx.font=fnt(12.5,'700');
+  ctx.fillText(TRIP ? 'CASCADE \u00b7 FREEZE-FRAME' : 'CASCADE', RX, y);
+  if(TRIP){ drawTriptych(y); return; }
+  if(!casc){
+    ctx.fillStyle=THEME.faint; ctx.font=fnt(10.5);
+    wrap('Click any node on the outermost ring to release one prediction error. ' +
+         'It climbs to whichever nodes were predicting it, and each of those passes ' +
+         'on only what its own prediction failed to explain. One row per hop, ' +
+         'one mark per node.', RX, y+17*FK, RW, 13.5*FK);
+    ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
+    ctx.fillText('At π = 100 it should die where it lands.', RX, y+80*FK);
+    return;
+  }
+  const el=cascElapsed();
+  const shown=Math.min(casc.gens.length, Math.floor(el/P.GEN_MS)+1);
+  const fade=cascFade(el);
+  ctx.globalAlpha=fade;
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
+  ctx.fillText(casc.head, RX, y+14*FK);
+  const top=y+26*FK, rowH=17*FK, mr=4.1*FK;
+  for(let g=0; g<casc.gens.length; g++){
+    const yy=top+g*rowH;
+    ctx.fillStyle=THEME.faint; ctx.font=fnt(9,'700');
+    ctx.fillText('hop '+g, RX, yy+3);
+    if(g>=shown) continue;
+    const row=casc.gens[g];
+    // marks appear one generation at a time, with a clear beat between rows
+    const t=clamp01((el-g*P.GEN_MS)/(P.GEN_MS*0.55));
+    for(let m=0;m<row.length;m++){
+      const s=row[m], n=M.nodes[s.node];
+      const x=RX+40*FK+m*(mr*2.6);
+      const k=clamp01(t*row.length-m*0.35);
+      if(k<=0) continue;
+      ctx.fillStyle=withA(n.col, 0.35+0.65*k);
+      ctx.beginPath(); ctx.arc(x, yy, mr*(0.5+0.5*k), 0, Math.PI*2); ctx.fill();
+    }
+  }
+  // the row after the last one: nothing. Drawn as a real, empty row, because
+  // "then nothing" is the thing being taught.
+  if(shown>=casc.gens.length && casc.gens.length<=P.GMAX){
+    const yy=top+casc.gens.length*rowH;
+    ctx.fillStyle=THEME.faint; ctx.font=fnt(9,'700');
+    ctx.fillText('hop '+casc.gens.length, RX, yy+3);
+    ctx.font=fnt(9.5); ctx.fillStyle=THEME.faint;
+    ctx.fillText('— nothing', RX+40*FK, yy+3);
+  }
+  // A figure, if one is wanted, goes here: small, under the ladder, never
+  // competing with the four-number row above it.
+  const capY=top+(casc.gens.length+1.6)*rowH;
+  ctx.fillStyle=THEME.dim; ctx.font=fnt(9.5,'600');
+  ctx.fillText(casc.caption, RX, capY);
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
+  ctx.fillText(casc.paused ? 'paused · click the ring to resume or fire again'
+                           : 'click another outer node to fire again', RX, capY+13*FK);
+  ctx.globalAlpha=1;
+}
 
-  const kFull=Math.floor(travel/P.HOP_MS), frac=(travel%P.HOP_MS)/P.HOP_MS;
-  // completed segments
+/* ---------- the dynamics sentence ---------------------------------------
+   Painted onto the canvas, not only into the page around it. These slides get
+   reused and these talks get recorded, and the framing has to survive being
+   separated from the speaker. */
+const DYN1='A teaching illustration of the REBUS mechanism, not a simulation.';
+const DYN2='Cortical 5-HT2A density is assumed to index where descending prediction precision relaxes first; everything else follows from that.';
+function drawDynamics(){
+  const x=16, y=CH-38, w=CW-32;
+  ctx.textAlign='left';
+  ctx.strokeStyle=THEME.edge; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(x, y-9*FK); ctx.lineTo(x+w, y-9*FK); ctx.stroke();
+  ctx.fillStyle=withA(THEME.fg, 0.60);
+  ctx.fillRect(x, y-2*FK, 2.4, 22*FK);
+  ctx.fillStyle=THEME.dim; ctx.font=fnt(10,'700');
+  ctx.fillText(DYN1, x+9, y+8*FK);
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
+  ctx.fillText(DYN2, x+9, y+20*FK);
+}
+
+/* ---------- the cascade, on the ring ------------------------------------ */
+function cascElapsed(){
+  if(!casc) return 0;
+  return casc.paused ? casc.pauseAt : Math.max(0, performance.now()-casc.t0);
+}
+function cascFade(el){
+  const full=casc.gens.length*P.GEN_MS;
+  const over=el-(full+P.HOLD_MS);
+  if(casc.paused || over<=0) return 1;
+  return Math.max(0, 1-over/P.FADE_MS);
+}
+function drawCascade(){
+  if(!casc) return;
+  const el=cascElapsed(), fade=cascFade(el);
+  if(fade<=0){ casc=null; latDirty=true; return; }
+  const PX=M.PX, PY=M.PY;
+  const col=boost(PAL.ring[0], THEME.dark);
+  // A halo under the whole cascade, so the tree separates from the traffic it
+  // is running through without the branches having to be thick enough to fuse.
   ctx.lineCap='round';
-  for(let k=0;k<nHop;k++){
-    const a=st[k].node, b=st[k+1].node;
-    const u = k<kFull ? 1 : (k===kFull ? frac : 0);
-    if(u<=0) continue;
-    const e=st[k].e;
-    ctx.strokeStyle=withA(boost(M.nodes[st[0].node].col, THEME.dark), 0.9*fade);
-    ctx.lineWidth=1.2+4.4*Math.sqrt(Math.min(1,e));
-    ctx.beginPath(); ctx.moveTo(PX[a],PY[a]);
-    ctx.lineTo(PX[a]+(PX[b]-PX[a])*u, PY[a]+(PY[b]-PY[a])*u); ctx.stroke();
+  for(let pass=0; pass<2; pass++){
+    ctx.strokeStyle = pass===0 ? withA(THEME.bg, 0.85*fade) : withA(col, 0.95*fade);
+    for(let g=1; g<casc.gens.length; g++){
+      const t=clamp01((el-(g-1)*P.GEN_MS)/(P.GEN_MS*0.8));
+      if(t<=0) break;
+      for(const s of casc.gens[g]){
+        const a=s.from, b=s.node;
+        const w=(0.9+1.9*Math.sqrt(clamp01(s.e)))*FK;
+        ctx.lineWidth = pass===0 ? w+2.6 : w;
+        ctx.beginPath(); ctx.moveTo(PX[a],PY[a]);
+        ctx.lineTo(PX[a]+(PX[b]-PX[a])*t, PY[a]+(PY[b]-PY[a])*t); ctx.stroke();
+      }
+    }
   }
   ctx.lineCap='butt';
-  // node flashes
-  for(let k=0;k<=Math.min(nHop,kFull);k++){
-    const i=st[k].node, e=st[k].e;
-    ctx.strokeStyle=withA(THEME.fg, 0.55*fade); ctx.lineWidth=1.2;
-    ctx.beginPath(); ctx.arc(PX[i],PY[i], M.nodes[i].nr+4+5*Math.sqrt(Math.min(1,e)),0,Math.PI*2);
-    ctx.stroke();
-  }
-  // the travelling pulse
-  if(!done){
-    const a=st[kFull].node, b=st[kFull+1].node, e=st[kFull].e;
-    const x=PX[a]+(PX[b]-PX[a])*frac, y=PY[a]+(PY[b]-PY[a])*frac;
-    const r=2.6+6.2*Math.sqrt(Math.min(1,e));
-    ctx.fillStyle=withA(boost(M.nodes[st[0].node].col, THEME.dark), 0.30);
-    ctx.beginPath(); ctx.arc(x,y,r*2.1,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle=boost(M.nodes[st[0].node].col, THEME.dark);
-    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-  } else {
-    // where it stopped
-    const last=st[st.length-1], i=last.node;
-    const alive=inject.dead<0;
-    ctx.strokeStyle=withA(alive?PAL.transmodal:THEME.fg, fade);
-    ctx.lineWidth=1.8;
-    if(alive){
-      ctx.beginPath(); ctx.arc(PX[i],PY[i], M.nodes[i].nr+9,0,Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(PX[i],PY[i], M.nodes[i].nr+14,0,Math.PI*2); ctx.stroke();
-    } else {
-      const d=7;
-      ctx.beginPath();
-      ctx.moveTo(PX[i]-d,PY[i]-d); ctx.lineTo(PX[i]+d,PY[i]+d);
-      ctx.moveTo(PX[i]+d,PY[i]-d); ctx.lineTo(PX[i]-d,PY[i]+d);
-      ctx.stroke();
+  for(let g=0; g<casc.gens.length; g++){
+    const t=clamp01((el-g*P.GEN_MS)/(P.GEN_MS*0.8));
+    if(t<=0) break;
+    for(const s of casc.gens[g]){
+      const i=s.node, n=M.nodes[i];
+      ctx.fillStyle=withA(THEME.bg, 0.9*fade*t);
+      ctx.beginPath(); ctx.arc(PX[i],PY[i], n.nr+2.2, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle=withA(col, 0.95*fade*t);
+      ctx.beginPath(); ctx.arc(PX[i],PY[i], n.nr+0.9, 0, Math.PI*2); ctx.fill();
+      // one expanding ring on the generation that has just landed
+      if(t<1){
+        ctx.strokeStyle=withA(THEME.fg, 0.55*fade*(1-t)); ctx.lineWidth=1.3;
+        ctx.beginPath(); ctx.arc(PX[i],PY[i], n.nr+3+9*t, 0, Math.PI*2); ctx.stroke();
+      }
     }
-    ctx.fillStyle=withA(THEME.fg, fade);
-    ctx.font='700 10px ui-sans-serif,system-ui,sans-serif'; ctx.textAlign='center';
-    ctx.fillText(alive?'reached the apex':'explained away', PX[i], PY[i]-M.nodes[i].nr-13);
-    ctx.textAlign='left';
+  }
+  // where it stopped. How far the cascade climbed IS the old "penetration
+  // depth", recovered as a picture instead of a borrowed name and a number.
+  const done=el>=casc.gens.length*P.GEN_MS;
+  if(done){
+    const last=casc.gens[casc.gens.length-1];
+    for(const s of last){
+      const i=s.node;
+      ctx.strokeStyle=withA(M.nodes[i].ring===3?PAL.transmodal:THEME.fg, fade);
+      ctx.lineWidth=1.6;
+      if(M.nodes[i].ring===3){
+        ctx.beginPath(); ctx.arc(PX[i],PY[i], M.nodes[i].nr+8,0,Math.PI*2); ctx.stroke();
+      } else {
+        const d=5.5;
+        ctx.beginPath();
+        ctx.moveTo(PX[i]-d,PY[i]-d); ctx.lineTo(PX[i]+d,PY[i]+d);
+        ctx.moveTo(PX[i]+d,PY[i]-d); ctx.lineTo(PX[i]-d,PY[i]+d);
+        ctx.stroke();
+      }
+    }
   }
 }
 
-function drawBars(){
-  const X=RX, W=RW, Y=220, STEP=64, H=18;
-  ctx.textAlign='left';
-  ctx.fillStyle=THEME.fg; ctx.font='700 11.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('ASSUMED DISRUPTION', X, Y-46);
-  ctx.fillStyle=THEME.faint; ctx.font='10.5px ui-sans-serif,system-ui,sans-serif';
-  ctx.fillText('5-HT2A percentile × (1 − π) — kept from v1 for comparison', X, Y-31);
-
-  for(let r=0;r<4;r++){
-    const y=Y+r*STEP, v=M.meanRk[r]*(1-precision);
-    ctx.fillStyle = hoverRing===r ? THEME.fg : THEME.dim;
-    ctx.font=(hoverRing===r?'600 ':'')+'11px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillText(PAL.ringLong[r], X, y-6);
-    ctx.fillStyle=THEME.edge; ctx.fillRect(X,y,W,H);
-    ctx.fillStyle=PAL.ring[r]; ctx.fillRect(X,y,W*v,H);
-    ctx.fillStyle=THEME.faint; ctx.font='600 10px ui-sans-serif,system-ui,sans-serif';
-    ctx.textAlign='right'; ctx.fillText(v.toFixed(2), X+W-5, y+12.5); ctx.textAlign='left';
-  }
-  const yb=Y+3*STEP+H+9;
-  ctx.strokeStyle=THEME.edge; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(X,yb); ctx.lineTo(X+W,yb); ctx.stroke();
-  ctx.fillStyle=THEME.faint; ctx.font='10px ui-sans-serif,system-ui,sans-serif';
-  ['0','0.5','1.0'].forEach((t,i)=>{
-    const x=X+W*i/2; ctx.textAlign=i===0?'left':(i===1?'center':'right');
-    ctx.fillText(t,x,yb+12);
-  });
-  ctx.textAlign='left';
-  const yEnd=wrap('A restatement of the model assumption — disruption defined as receptor ' +
-       'density times lost precision. Not a measurement and not a result. ' +
-       'Penetration depth has replaced it as the headline number.', X, yb+32, W, 14);
-  // The full injection readout lives in the cards view, but an injection fired
-  // while these bars are up must still report itself rather than looking like
-  // a dead click. Toggles stay pure; nothing here mutates SHOW.
-  if(injectMsg){
-    ctx.fillStyle=THEME.faint; ctx.font='10px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillText('last injection — turn off “disruption bars” for the full trace',
-                 X, yEnd+22);
-    ctx.fillStyle=injectMsg.col; ctx.font='700 10.5px ui-sans-serif,system-ui,sans-serif';
-    wrap(injectMsg.verdict, X, yEnd+36, W, 13);
-  }
-}
 function wrap(text,x,y,w,lh){
   const words=text.split(' '); let line='';
   for(const wd of words){
@@ -1570,6 +1536,142 @@ function wrap(text,x,y,w,lh){
   }
   if(line){ ctx.fillText(line,x,y); return y; }
   return y-lh;
+}
+
+/* ======================================================================== *
+ *  PANEL B -- the same parcels as a lattice.
+ *
+ *  Redundant with the ring as a second predictive-processing diagram, and
+ *  kept anyway, because it has the one thing the ring does not: lattice
+ *  geometry. That makes it the criticality pane. The shared slider is the
+ *  whole move -- one knob changes a cortical map and a lattice at once.
+ * ======================================================================== */
+const LW=620, LH=300;
+let LGEO=null;
+function fitLat(){
+  const g=fitOne(lcv, lctx, LW, LH);
+  if(g) LGEO=g;
+  latDirty=true;
+}
+function drawLattice(ts){
+  if(!S.lat) return;
+  lctx.save();
+  lctx.setTransform(1,0,0,1,0,0); lctx.clearRect(0,0,lcv.width,lcv.height); lctx.restore();
+  const L=S.lat, C=P.COLS;
+  const x0=82, y0=34, gw=LW-x0-16, gh=LH-y0-62;
+  const cw=gw/C, band=gh/4;
+  const pad=Math.min(1.8, cw*0.14);                 // gap between columns
+  // Layers are drawn apart, not merely stacked: a patch that spans two rows
+  // has to visibly bridge the gap, so "activity crossed a level" is a thing
+  // you can see rather than an adjacency you have to take on trust.
+  const chh=Math.min(band-8, cw*2.4);
+  // row 0 = idiotypic is drawn at the BOTTOM: the surface is at the bottom and
+  // the apex is at the top, the same orientation the ring uses radially.
+  const cellX=c=>x0+c*cw, cellY=r=>y0+(3-r)*band+(band-chh)/2;
+
+  lctx.textAlign='left';
+  lctx.fillStyle=THEME.faint; lctx.font=fnt(9,'700');
+  lctx.fillText('SURFACE → APEX, BOTTOM TO TOP · COLUMNS FOLLOW THE GRADIENT', x0, 15);
+
+  for(let r=3;r>=0;r--){
+    lctx.fillStyle = hoverRing===r ? THEME.fg : THEME.faint;
+    lctx.font=fnt(9.5, hoverRing===r?'700':'600');
+    lctx.textAlign='right';
+    lctx.fillText(PAL.ringNames[r], x0-8, cellY(r)+chh/2+3);
+    lctx.textAlign='left';
+    for(let c=0;c<C;c++){
+      const i=M.grid[r][c], x=cellX(c), y=cellY(r);
+      const on=L.on[r][c];
+      if(on){
+        lctx.fillStyle=withA(PAL.ring[r], 0.32+0.55*clamp01(L.A[r][c]));
+        lctx.fillRect(x+pad, y, cw-2*pad, chh);
+      } else {
+        lctx.strokeStyle=withA(PAL.ring[r], 0.26); lctx.lineWidth=1;
+        lctx.strokeRect(x+pad+.5, y+.5, cw-2*pad-1, chh-1);
+      }
+      if(i>=0 && !M.nodes[i].rhoOk){          // no PET signal here
+        lctx.strokeStyle=withA(THEME.faint,0.85); lctx.lineWidth=1;
+        lctx.beginPath();
+        lctx.moveTo(x+pad+1.5,y+1.5); lctx.lineTo(x+cw-pad-1.5,y+chh-1.5);
+        lctx.stroke();
+      }
+    }
+  }
+  // Outline each patch as one object, so a spanning patch reads as a single
+  // thing crossing a level boundary rather than as cells that happen to align.
+  // the bonds themselves: a short tie drawn in the gap wherever a coupling is
+  // open. The vertical ties are the ones that appear as the slider falls.
+  lctx.lineWidth=1.4;
+  for(let r=0;r<4;r++) for(let c=0;c<C;c++){
+    if(c<C-1 && L.hb[r][c]>=P.BONDT){
+      const y=cellY(r)+chh/2;
+      lctx.strokeStyle=withA(PAL.ring[r], 0.35);
+      lctx.beginPath(); lctx.moveTo(cellX(c)+cw-pad, y); lctx.lineTo(cellX(c+1)+pad, y); lctx.stroke();
+    }
+    if(r<3 && L.vb[r][c]>=P.BONDT){
+      const x=cellX(c)+cw/2;
+      lctx.strokeStyle=withA(PAL.transmodal, 0.62);
+      lctx.beginPath(); lctx.moveTo(x, cellY(r)); lctx.lineTo(x, cellY(r+1)+chh); lctx.stroke();
+    }
+  }
+  for(const comp of L.comp){
+    if(comp.n<2) continue;
+    const span=comp.rows>1;
+    lctx.strokeStyle=withA(span?PAL.transmodal:THEME.fg, span?0.95:0.32);
+    lctx.lineWidth=span?2.0:1.0;
+    lctx.beginPath();
+    for(const [r,c] of comp.cells){
+      const x=cellX(c)+pad, y=cellY(r), w=cw-2*pad;
+      const has=(r2,c2)=>r2>=0&&r2<4&&c2>=0&&c2<C&&L.lab[r2][c2]===comp.id;
+      if(!has(r,c-1)){ lctx.moveTo(x,y); lctx.lineTo(x,y+chh); }
+      if(!has(r,c+1)){ lctx.moveTo(x+w,y); lctx.lineTo(x+w,y+chh); }
+      lctx.moveTo(x,y); lctx.lineTo(x+w,y);
+      lctx.moveTo(x,y+chh); lctx.lineTo(x+w,y+chh);
+      // a patch that bridges two layers gets the bridge drawn in
+      if(has(r+1,c)){ const xm=x+w/2;
+        lctx.moveTo(xm, cellY(r+1)+chh); lctx.lineTo(xm, y); }
+    }
+    lctx.stroke();
+  }
+  // a running cascade lights the same parcels here, in the other geometry
+  if(casc){
+    const el=cascElapsed(), fade=cascFade(el);
+    const cellOf=new Map();
+    for(let r=0;r<4;r++) for(let c=0;c<C;c++) cellOf.set(M.grid[r][c], [r,c]);
+    for(let g=0; g<casc.gens.length; g++){
+      const t=clamp01((el-g*P.GEN_MS)/(P.GEN_MS*0.8));
+      if(t<=0) break;
+      for(const s of casc.gens[g]){
+        let hit=cellOf.get(s.node);
+        if(!hit){                       // this parcel is not one of the sampled cells
+          const n=M.nodes[s.node], row=M.byRing[n.ring];
+          const k=row.indexOf(n);
+          hit=[n.ring, Math.min(C-1, Math.round((k+0.5)*C/Math.max(1,row.length)-0.5))];
+        }
+        const [r,c]=hit, x=cellX(c), y=cellY(r);
+        lctx.strokeStyle=withA(boost(PAL.ring[0],THEME.dark), 0.95*fade*t);
+        lctx.lineWidth=2.2;
+        lctx.strokeRect(x+pad-1.5, y-1.5, cw-2*pad+3, chh+3);
+      }
+    }
+  }
+  // the reading, in words, under the lattice
+  const by=y0+gh+18;
+  lctx.fillStyle=THEME.dim; lctx.font=fnt(10,'600');
+  const spanning=L.comp.filter(c=>c.rows>1).length;
+  lctx.fillText(L.spanRows<=1
+      ? 'Every patch is trapped inside one level. Activity does not cross.'
+      : spanning+' patch'+(spanning===1?'':'es')+' now span'+(spanning===1?'s':'')+
+        ' '+L.spanRows+' levels — the largest covers '+L.biggest+' parcels.',
+    x0, by);
+  lctx.fillStyle=THEME.faint; lctx.font=fnt(9);
+  lctx.fillText(L.vOpen+' of '+L.vTot+' across-level bonds are open (orange). Within-level ' +
+    'coupling is constant; across levels it is (1 − precision index) of the upper cell, ' +
+    'so at π = 100 it is exactly zero.', x0, by+13);
+  lctx.fillText('One cell = one parcel. Seeds are a fixed comb, the same in every row, every ' +
+    'time — nothing here is sampled.', x0, by+25);
+  latstat.textContent = Math.round(100*L.frac)+'% active · tallest patch '+L.spanRows+
+    ' of 4 · '+L.vOpen+'/'+L.vTot+' level bonds open';
 }
 
 /* ---------- interaction ------------------------------------------------- */
@@ -1598,61 +1700,66 @@ cv.addEventListener('mousemove', ev=>{
   }
   cv.style.cursor = (best && best.ring===0) ? 'pointer' : 'default';
   if(best) showTip(best, ev); else tip.style.opacity=0;
-  if(prevN!==hoverNode||prevR!==hoverRing){ dirty=true; syncBrain(); }
+  if(prevN!==hoverNode||prevR!==hoverRing){ dirty=true; latDirty=true; syncBrain(); }
 });
 cv.addEventListener('mouseleave', ()=>{
-  hoverNode=null; hoverRing=-1; tip.style.opacity=0; dirty=true; syncBrain();
+  hoverNode=null; hoverRing=-1; tip.style.opacity=0; dirty=true; latDirty=true; syncBrain();
 });
 cv.addEventListener('click', ev=>{
   const [x,y]=toLogical(ev);
   const n=nearest(x,y,14);
   // On a touch screen there is no hover, so a tap has to do the job of both:
-  // it reads the node out, and on the outer ring it also fires an injection.
-  if(!n){ tip.style.opacity=0; hoverNode=null; hoverRing=-1; dirty=true; syncBrain(); return; }
+  // it reads the node out, and on the outer ring it also fires a cascade.
+  if(!n){
+    if(casc){ casc.paused=!casc.paused;                 // pause / resume
+      if(!casc.paused) casc.t0=performance.now()-casc.pauseAt; else casc.pauseAt=cascElapsed();
+      dirty=true; return; }
+    tip.style.opacity=0; hoverNode=null; hoverRing=-1; dirty=true; syncBrain(); return;
+  }
   if(n!==hoverNode || n.ring!==hoverRing){
     hoverNode=n; hoverRing=n.ring; dirty=true; syncBrain();
   }
   showTip(n, ev);
   if(n.ring!==0) return;
-  const tr=traceInjection(n.i);
-  if(!tr) return;
-  inject=tr;
-  const st=tr.steps, last=st[st.length-1];
-  const hops=st.slice(1).map((s,k)=>'ring '+(k+1)+' e='+s.e.toFixed(2)).join('   →   ');
-  injectMsg={
-    head: n.p.hemi+'_'+n.p.name+'  ·  '+(n.p.modality||'no stream')+
-          '  ·  ρ '+n.rho.toFixed(2)+'  ·  at π = '+Math.round(precision*100)+
-          '  ·  injected e = '+P.E_INJECT.toFixed(2),
-    hops: 'e = 1.00   →   '+hops,
-    verdict: tr.dead<0
-      ? '✓ reached the apex — ring 3 (paralimbic), e = '+last.e.toFixed(2)
-      : '✕ explained away at ring '+tr.dead+' ('+PAL.ringNames[tr.dead]+') — '+
-        M.nodes[last.node].p.hemi+'_'+M.nodes[last.node].p.name+', e = '+last.e.toFixed(2),
-    col: tr.dead<0 ? PAL.transmodal : THEME.dim
-  };
-  // NOT: SHOW.bars=false. Firing an injection used to silently flip a toggle
-  // the viewer had set, which is exactly the coupling FIX 2 removes. The bars
-  // view carries its own one-line verdict instead (see drawBars).
-  dirty=true;
+  fireCascade(n);
 });
+function fireCascade(n){
+  tripSeed=n.i;
+  if(TRIP){ TRIP=tripCompute(n.i); dirty=true; return; }   // freeze-frame is up
+  const tr=traceCascade(n.i);
+  const sizes=tr.gens.map(g=>g.length);
+  const grew=sizes.length>1 && sizes[sizes.length-1]>=sizes[sizes.length-2];
+  tr.head=n.p.hemi+'_'+n.p.name+'  ·  ρ '+ordinal(Math.round(n.rk*100))+
+          ' pct  ·  at π = '+Math.round(precision*100);
+  tr.caption = tr.gens.length===1
+    ? 'Explained away where it landed — no hop survived.'
+    : tr.total+' parcels over '+(tr.gens.length-1)+' hop'+(tr.gens.length===2?'':'s')+
+      ' · reached '+PAL.ringNames[tr.deepest]+
+      (tr.total>=P.NMAX ? ' · held at the drawing cap' : (grew?' · still growing':' · tapered out'));
+  casc=tr; dirty=true; latDirty=true;
+}
 function showTip(n,ev){
   const p=n.p, i=n.i;
+  const k=S.K[i], ne=S.conc[i]>0 ? 1/S.conc[i] : 1;
   tip.innerHTML='<div class="t">'+p.name+' <span style="color:var(--dim);font-weight:400">'+
     (p.hemi==='L'?'left':'right')+'</span></div><div class="g">'+
     '<span>cortical type</span><b>'+PAL.ringLong[p.ring]+'</b>'+
     '<span>type purity</span><b>'+(p.ringPurity!==undefined?p.ringPurity.toFixed(2):'—')+
-      (p.ringPurity!==undefined && p.ringPurity<0.6?' <span style="color:var(--badge-assumed-fg)">near tie</span>':'')+'</b>'+
-    '<span>stream</span><b>'+((p.stream!==undefined?p.stream:p.modality)||'no label')+'</b>'+
+      (p.ringPurity!==undefined && p.ringPurity<0.6?' <span style="color:var(--warn-fg)">near tie</span>':'')+'</b>'+
+    '<span>stream</span><b>'+(n.stream||'no label')+'</b>'+
     '<span>gradient</span><b>'+p.gradient.toFixed(2)+'</b>'+
-    '<span>5-HT2A ρ</span><b>'+p.rho.toFixed(2)+' · '+ordinal(Math.round(p.rhoRank*100))+' pct</b>'+
+    '<span>5-HT2A</span><b>'+(n.rhoOk
+        ? p.rhoRaw.toFixed(1)+' BPₙᵈ · '+ordinal(Math.round(n.rk*100))+' pct'
+        : '<span style="color:var(--warn-fg)">no cortical signal</span>')+'</b>'+
     '<span>level</span><b>'+(HAS_LEVEL?p.level.toFixed(2)+' · T1w/T2w '+p.myelin.toFixed(2)
                                 :n.levelN.toFixed(2)+' (placeholder)')+'</b>'+
     '<span>τ</span><b>'+(n.tauRaw!==null?n.tauRaw.toFixed(1)+' · '+ordinal(Math.round(n.tauN*100))+' pct'
                                         :n.tauN.toFixed(2)+' (derived)')+'</b>'+
     '</div><hr><div class="g">'+
-    '<span>πᵢ prior precision</span><b>'+S.pi[i].toFixed(3)+'</b>'+
-    '<span>σ prior width</span><b>'+S.sig[i].toFixed(2)+'</b>'+
-    '<span>error leaving</span><b>'+S.E[i].toFixed(3)+'</b>'+
+    '<span>descending targets</span><b>'+S.Kf[i].toFixed(1)+' of '+M.cand[i].length+' candidates</b>'+
+    '<span>effective targets</span><b>'+ne.toFixed(2)+'</b>'+
+    '<span>precision index</span><b>'+S.idx[i].toFixed(2)+'</b>'+
+    '<span>total drive</span><b>×'+S.W[i].toFixed(2)+'</b>'+
     '</div>';
   tip.style.opacity=1;
   const w=tip.offsetWidth, h=tip.offsetHeight;
@@ -1660,14 +1767,21 @@ function showTip(n,ev){
   tip.style.top =Math.max(8, ev.clientY-h-14)+'px';
 }
 
+/* ---------- controls ---------------------------------------------------- */
 const slider=document.getElementById('prec'), precv=document.getElementById('precv');
 function setPrec(v){
   v=Math.max(0,Math.min(100,v));
   slider.value=v; precision=v/100; precv.textContent=v;
-  reprecision(); regeom();
+  reprecision(); reciprocal(); relattice(); regeom();
 }
 slider.addEventListener('input',()=>setPrec(+slider.value));
 window.addEventListener('keydown',ev=>{
+  if(ev.key===' ' && casc){                      // space pauses a running cascade
+    ev.preventDefault();
+    casc.paused=!casc.paused;
+    if(!casc.paused) casc.t0=performance.now()-casc.pauseAt; else casc.pauseAt=cascElapsed();
+    dirty=true; return;
+  }
   if(ev.key!=='ArrowLeft'&&ev.key!=='ArrowRight') return;
   if(ev.target.tagName==='SELECT') return;
   ev.preventDefault();
@@ -1678,12 +1792,10 @@ function syncChip(id,on){
   const b=document.getElementById(id);
   b.setAttribute('aria-pressed',on); b.classList.toggle('on',on);
 }
-[['cPred','pred'],['cErr','err'],['cInv','hideInv'],
- ['cHalo','halo'],['cField','field'],['cBars','bars']]
+[['cPred','pred'],['cErr','err'],['cInv','hideInv'],['cCollar','collar']]
 .forEach(([id,key])=>{
   document.getElementById(id).addEventListener('click',()=>{
-    SHOW[key]=!SHOW[key]; syncChip(id, SHOW[key]);
-    if(key==='bars') dirty=true; else regeom();
+    SHOW[key]=!SHOW[key]; syncChip(id, SHOW[key]); regeom();
   });
 });
 
@@ -1693,7 +1805,7 @@ document.getElementById('sweep').addEventListener('click',function(){
   this.textContent='Stop ■';
   const btn=this, t0=performance.now(), from=+slider.value||100;
   const step=()=>{
-    const u=Math.min(1,(performance.now()-t0)/4200);
+    const u=Math.min(1,(performance.now()-t0)/5200);
     setPrec(Math.round(from*(1-u)));
     if(u<1) sweeping=requestAnimationFrame(step);
     else { sweeping=0; btn.textContent='Sweep ▶'; }
@@ -1703,20 +1815,55 @@ document.getElementById('sweep').addEventListener('click',function(){
 document.getElementById('motion').addEventListener('click',function(){
   motion=!motion; this.setAttribute('aria-pressed',motion); dirty=true;
 });
-document.getElementById('theme').addEventListener('click',function(){
+/* Freeze-frame. Uses the last node clicked, or the first outer-ring node if
+   nothing has been clicked yet, so it works straight off the keyboard. */
+let tripSeed=null;
+const tripBtn=document.getElementById('trip');
+tripBtn.addEventListener('click',function(){
+  if(TRIP){ TRIP=null; this.setAttribute('aria-pressed',false);
+            this.classList.remove('on'); dirty=true; return; }
+  const seed = tripSeed!==null ? tripSeed
+             : (M.byRing[0].length ? M.byRing[0][Math.floor(M.byRing[0].length/2)].i : null);
+  if(seed===null) return;
+  casc=null; TRIP=tripCompute(seed);
+  this.setAttribute('aria-pressed',true); this.classList.add('on');
+  dirty=true;
+});
+const themeBtn=document.getElementById('theme');
+themeBtn.addEventListener('click',function(){
+  if(PRES) return;                       // presentation mode owns the theme
   const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.documentElement.setAttribute('data-theme', dark?'light':'dark');
   this.textContent = dark?'Dark':'Light';
   _boostMemo.clear(); _desatMemo.clear(); _rhoMemo.clear();
   readTheme(); regeom();
 });
+/* Presentation mode. Light, high contrast, bigger type on the canvas as well
+   as in the page, and none of the workshop controls. */
+const presBtn=document.getElementById('pres');
+let themeBefore=null;
+presBtn.addEventListener('click',function(){
+  PRES=!PRES;
+  this.setAttribute('aria-pressed',PRES);
+  themeBtn.disabled=PRES; themeBtn.style.opacity=PRES?0.45:1;
+  if(PRES){
+    themeBefore=document.documentElement.getAttribute('data-theme');
+    document.documentElement.setAttribute('data-pres','1');
+    document.documentElement.setAttribute('data-theme','light');
+    themeBtn.textContent='Dark';
+    FK=1.18;
+  } else {
+    document.documentElement.removeAttribute('data-pres');
+    if(themeBefore) document.documentElement.setAttribute('data-theme', themeBefore);
+    themeBtn.textContent = themeBefore==='dark' ? 'Light' : 'Dark';
+    FK=1;
+  }
+  _boostMemo.clear(); _desatMemo.clear(); _rhoMemo.clear();
+  readTheme();
+  requestAnimationFrame(()=>{ fit(); latDirty=true; });
+});
 
-/* ---------- Panel B ----------------------------------------------------- */
-/* FIX 7. Two colour modes, not three. The old default painted the surface by
-   "sensory stream mixed toward transmodal by Mesulam type", which is a second
-   colour system competing with the ring colours -- exactly the thing this fix
-   removes. Mesulam type is now the canonical surface, painted with the SAME
-   four hexes Panel A fills its nodes with, and 5-HT2A is the one alternate. */
+/* ---------- Panel C ----------------------------------------------------- */
 const imgs={base:document.getElementById('bBase'), rho:document.getElementById('bRho'),
             r:[0,1,2,3].map(i=>document.getElementById('bR'+i))};
 imgs.base.src='assets/brain_rings.png';
@@ -1730,7 +1877,7 @@ let bmode=0;
    assets/brain_ids.png is a flat, unshaded, un-antialiased render in which each
    parcel is filled with one exact RGB triple. Decoded once, it gives a pixel ->
    parcel lookup, which is what lets hovering ONE node in Panel A outline that
-   ONE parcel on the surface. 0% of its opaque pixels are ambiguous. */
+   ONE parcel on the surface. */
 const PICK={ready:false, w:0, h:0, owner:null, box:null, byId:new Map()};
 const bPick=document.getElementById('bPick'), pctx=bPick.getContext('2d');
 (function loadPick(){
@@ -1798,24 +1945,24 @@ function outlineParcel(parcelId){
 const RING_N=[0,1,2,3].map(r=>PARCELS.filter(p=>p.ring===r).length);
 function syncBrain(){
   imgs.rho.style.opacity = bmode===1?1:0;
-  // ring overlays only make sense on the cortical-type surface
   imgs.r.forEach((im,i)=>{ im.style.opacity = (bmode===0 && i===hoverRing && !hoverNode)?1:0; });
   outlineParcel(bmode===0 && hoverNode ? hoverNode.p.id : null);
 
   if(bmode===1){
     blabel.innerHTML='<b>5-HT2A receptor density</b> — Beliveau [<sup>11</sup>C]Cimbi-36 parcel ' +
-      'means, as percentile rank. This is the map that decides which nodes lose their priors ' +
-      'first. Ring and parcel highlighting are paused while it is shown.';
+      'means. This is the map that decides which nodes fan out first. Ring and parcel ' +
+      'highlighting are paused while it is shown.';
   } else if(hoverNode){
     blabel.innerHTML='<b style="color:'+PAL.ring[hoverNode.ring]+'">'+
       hoverNode.p.hemi+'_'+hoverNode.p.name+'</b> — '+PAL.ringLong[hoverNode.ring]+
       ', outlined on the surface.';
   } else if(hoverRing>=0){
     blabel.innerHTML='<b style="color:'+PAL.ring[hoverRing]+'">'+PAL.ringLong[hoverRing]+'</b> — ring '+
-      hoverRing+' in Panel A, '+RING_N[hoverRing]+' of 360 parcels, lit on the surface.';
+      hoverRing+' in Panel A, row '+hoverRing+' in Panel B, '+RING_N[hoverRing]+
+      ' of 360 parcels, lit on the surface.';
   } else {
-    blabel.innerHTML='Cortex by <b>Mesulam cortical type</b> — the same four colours Panel A fills ' +
-      'its nodes with, so a node and its parcel are the same hex. ' +
+    blabel.innerHTML='Cortex by <b>Mesulam cortical type</b> — the same four colours Panels A and B ' +
+      'use, so a node, a lattice cell and its parcel are the same hex. ' +
       [0,1,2,3].map(r=>'<b style="color:'+PAL.ring[r]+'">'+PAL.ringNames[r]+'</b> '+RING_N[r]).join(' · ') +
       '. Hover a ring or a node in Panel A to light it up here.';
   }
@@ -1844,153 +1991,137 @@ const chips=document.getElementById('ringchips');
   const b=document.createElement('button');
   b.className='chip';
   b.innerHTML='<span class="sw" style="background:'+PAL.ring[r]+'"></span>'+PAL.ringNames[r];
-  b.addEventListener('mouseenter',()=>{ hoverRing=r; dirty=true; syncBrain(); });
-  b.addEventListener('mouseleave',()=>{ hoverRing=-1; dirty=true; syncBrain(); });
+  b.addEventListener('mouseenter',()=>{ hoverRing=r; dirty=true; latDirty=true; syncBrain(); });
+  b.addEventListener('mouseleave',()=>{ hoverRing=-1; dirty=true; latDirty=true; syncBrain(); });
   chips.appendChild(b);
 });
 
 /* ======================================================================== *
- *  HONESTY LEDGER. Three tiers. The ASSUMED entries print the equations
- *  straight out of P and out of the functions above -- if the model changes
- *  and this text does not, that is a bug you can see.
+ *  LABELLING. Two parts, not three tiers.
+ *
+ *  INPUTS -- what came in, each with a source line.
+ *  DYNAMICS -- one sentence, printed on the figure as well as beside it,
+ *  because these slides get reused and these talks get recorded, and the
+ *  framing has to survive being separated from the speaker.
  * ======================================================================== */
-const LEVEL_ENTRY = HAS_LEVEL ? null : {
-  key:'level', value:'hierarchical level — PLACEHOLDER, NOT DATA',
-  status:'assumed',
-  detail:'parcels.json carries no <code>level</code> field, so the figure is running on ' +
-         '<code>level = ring + jitter</code> — note that ring 3 is the INNERMOST ring, so a ' +
-         'placeholder level has to increase with ring index, not decrease — with the jitter ' +
-         'a deterministic hash of the ' +
-         'parcel id. Edge direction is therefore currently just the ring order plus noise. ' +
-         'Re-run <code>build_assets.py</code> to replace it with inverted T1w/T2w myelin.'
-};
-const TAU_ENTRY = HAS_TAU ? null : {
-  key:'tau', value:'intrinsic timescale — derived from level',
-  status:'derived',
-  detail:'No MEG intrinsic-timescale annotation is present in parcels.json, so τ is set ' +
-         'monotonically equal to the normalised level. Node radius therefore carries no ' +
-         'independent temporal information at the moment — it is a restatement of depth.'
-};
-const R0_MOTOR = PARCELS.filter(p=>p.ring===0 &&
-                  ((p.stream!==undefined?p.stream:p.modality)==='somatomotor')).length;
-const R0_ALL = PARCELS.filter(p=>p.ring===0).length;
-const MODEL_ENTRIES = [
-  { key:'ring 0 is sensorimotor, not sensory', value:'idiotypic = primary sensory AND primary motor',
-    status:'derived',
-    detail:'Mesulam idiotypic cortex includes primary motor: '+R0_MOTOR+' of the '+R0_ALL+
-           ' ring-0 parcels are somatomotor (M1 area 4, areas 3a/3b/1, premotor 6a/6d/6v/6r/6mp, ' +
-           '55b, FEF, PEF), so ring 0 is a sensorimotor shell, not a sensory input shell. ' +
-           'That matters for the arrows. A descending prediction into M1 is a proprioceptive ' +
-           'prediction, and it is resolved by <em>moving</em> — the body is changed until the ' +
-           'prediction comes true — rather than by revising the belief. Ring-0 motor parcels are ' +
-           'therefore a principled exception to “error travels inward”, and this figure draws them ' +
-           'like every other node because it does not model action. Note also that the separately ' +
-           'labelled wedge is <b>not</b> motor: every motor parcel carries a somatomotor stream ' +
-           'and sits in that wedge. What is left over is association cortex with no stream ' +
-           'assignment at all — run <code>FIG.censusWedge()</code> for the parcel list.' },
-  { key:'edge direction', value:'measured T1w/T2w level, inversions kept',
-    status:'derived',
-    detail:'For every functional edge the endpoint with the higher measured level sends the ' +
-           'descending prediction, and the paired reverse channel is its ascending error return. ' +
-           'Level is the inverted T1w/T2w myelin map, used raw — <em>not</em> nested inside the ' +
-           'Mesulam ring order. Nesting it that way makes every cross-ring arrow point ' +
-           'apex-outward by construction, which is tidier but means the direction is just the ring ' +
-           'assignment restated. Used raw, about 30% of cross-ring edges come out as level ' +
-           'inversions, because the per-parcel myelin ranges of adjacent Mesulam classes really do ' +
-           'overlap. Those edges are kept at their measured direction and drawn thin, desaturated ' +
-           'and dotted, counted separately in the HUD, and hideable. A load-time assertion checks ' +
-           'that every non-inverted prediction edge advances outward in screen radius. Nothing ' +
-           'here is tractography or a lag analysis; the decision to read a level ordering as ' +
-           'message-passing direction is the assumption.',
-    eq:'level(i) = ring(i) + rank of T1w/T2w level within ring(i)\n' +
-       'prediction runs from the higher level(i) to the lower\n' +
-       'error      runs back along the same pair' },
-  { key:'prior precision', value:'how the slider changes each node',
-    status:'assumed',
-    detail:'ρᵢ is the measured, min-max normalised 5-HT2A density of that parcel. ' +
-           'The rationale for gating on it — 5-HT2A is enriched on layer-5 pyramidal apical ' +
-           'dendrites, and layer 5 is the origin of descending predictions — is a claim about ' +
-           'anatomy, not something this figure measures.',
-    eq:'d   = 1 − π                      (drug strength)\n' +
-       'πᵢ  = π · (1 − ρᵢ · d)             (prior precision of node i)\n' +
-       'σᵢ  = 1 / √max(πᵢ, '+P.PI_FLOOR.toFixed(2)+')        (prior width → halo, card curve)' },
-  { key:'channel weights', value:'what sets every line width you see',
-    status:'assumed',
-    detail:'Prediction weight is the precision of the sending (higher-level) node. Error is ' +
-           'seeded at 1 on ring 0 and averaged over each node’s outward neighbours as it climbs. ' +
-           'Edges below the cull thresholds are simply not drawn, which is why the error channel ' +
-           'disappears entirely at π = 100 and the prediction channel disappears at π = 0.',
-    eq:'prediction width ∝ π_hi                    cull below πᵢ = '+P.PI_CULL.toFixed(2)+'\n' +
-       'e_out(i)         = e_in(i) · (1 − πᵢ)      cull below e  = '+P.E_CULL.toFixed(2)+'\n' +
-       'e_in(i)          = mean over outward neighbours of e_out' },
-  { key:'penetration depth', value:'the headline number',
-    status:'assumed',
-    detail:'One unit of error is released at each ring-0 node in turn and walked inward along ' +
-           'its nearest-angle chain. The depth is where it crosses θ, interpolated inside the ' +
-           'hop, averaged over every ring-0 node. θ is a free parameter chosen so the readout ' +
-           'sits at ring 1 when π = 100 and approaches ring 3 when π = 0; nothing measures it.',
-    eq:'e₀ = '+P.E_INJECT.toFixed(2)+' at the ring-0 node’s output\n' +
-       'eᵣ = eᵣ₋₁ · (1 − πᵢ)   for each node on the inward chain\n' +
-       'explained away when e < θ = '+P.THETA.toFixed(2)+'\n' +
-       'depth = mean over ring-0 nodes of the (interpolated) ring index at the crossing' },
-  { key:'REBUS mapping', value:'the step from all of the above to pharmacology',
-    status:'assumed',
-    detail:'That a 5-HT2A agonist relaxes high-level priors, that relaxation is well modelled as ' +
-           'a multiplicative loss of prior precision scaled by receptor density, and that deeper ' +
-           'error penetration corresponds to anything a person reports — all three are the ' +
-           'hypothesis being illustrated, not results. Every number in this figure that moves ' +
-           'when you move the slider is downstream of the two equations above.' },
-  { key:'colour', value:'stream × cortical type, and nothing else',
-    status:'derived',
-    detail:'A parcel’s colour is its sensory stream base hue mixed toward transmodal orange by ' +
-           'its Mesulam type, and it depends on no other node — which is what lets Panel B paint ' +
-           'the cortical surface with the identical rule, so a node and its parcel are the same ' +
-           'colour in both panels. v1 tinted heteromodal nodes by the mean colour of their nearest ' +
-           'ring-1 neighbours in the schematic layout; that was layout noise encoded as colour and ' +
-           'it has been removed. Only 9 of the 195 heteromodal and paralimbic parcels sit in a ' +
-           'division that names a stream, so those two rings read as near-uniform orange. That is ' +
-           'the convergence, not a shortcut.' },
-  { key:'geometry', value:'rings, angles, scaffold, both functional edge layers',
-    status:'assumed',
-    detail:'Ring radii, the anatomical scaffold and both functional edge sets are schematic. ' +
-           'No tractography or functional connectivity was used. Only the recruitment ORDER of ' +
-           'off-anatomy edges is data-driven (endpoint mean 5-HT2A rank), and only the angular ' +
-           'position of a node is measured (its Margulies gradient).' }
+const INPUTS = [
+  {k:'ρ',  v:'cortical 5-HT2A density',
+   s:'Beliveau et al. 2017, [<sup>11</sup>C]Cimbi-36 PET atlas (BP<sub>ND</sub>), parcel means.',
+   n:'Coloured and ordered by percentile, because the measured spread is narrow enough ' +
+     'that a linear encoding reads as one flat colour; the colourbar prints ' +
+     'BP<sub>ND</sub> at the deciles. Two parcels carry no cortical-ribbon signal and make ' +
+     'no receptor claim: gap in the collar, hollow node, left out of the ring readout.'},
+  {k:'τ',  v:'intrinsic timescale',
+   s:'MEG time constants, HCP S1200 (neuromaps hcps1200/megtimescale). Node radius.',
+   n:'Measured and fixed — it does not move with the slider. Radius follows the ' +
+     'percentile rank, because the measured distribution is right-skewed.'},
+  {k:'edge direction', v:'inverted T1w/T2w ratio',
+   s:'HCP S1200 group myelin map. Low myelin = high in the hierarchy, so a prediction ' +
+     'runs from the higher level to the lower.',
+   n:'Where it disagrees with the Mesulam order the edge is kept at its measured ' +
+     'direction and drawn as an inversion rather than quietly reversed.'},
+  {k:'parcellation', v:'HCP-MMP1, 360 areas',
+   s:'Glasser et al. 2016. Ring = Mesulam cortical type (Paquola et al. 2019 atlas). ' +
+     'Angle and lattice column = Margulies et al. 2016 principal gradient.', n:''}
 ];
-const TIER=['measured','derived','assumed'];
-const TIER_LABEL={measured:'MEASURED — comes from a published dataset',
-                  derived:'DERIVED — a deterministic transform of measured data',
-                  assumed:'ASSUMED — the model. Not measured, not a result.'};
-function tierOf(status){
-  const s=(status||'').toLowerCase();
-  if(s.startsWith('measured')) return 'measured';
-  if(s.startsWith('derived'))  return 'derived';
-  return 'assumed';                      // v1's "schematic" lands here by design
-}
-(function renderSources(){
-  const items=[];
-  for(const [k,v] of Object.entries(D.sources||{})){
-    if(k==='disruption'||k==='edges') continue;   // superseded by the entries below
-    items.push({key:k, value:v.value, status:v.status, detail:v.detail});
-  }
-  if(LEVEL_ENTRY) items.push(LEVEL_ENTRY);
-  if(TAU_ENTRY)   items.push(TAU_ENTRY);
-  items.push(...MODEL_ENTRIES);
-
-  let html='<h3>WHAT IS MEASURED, WHAT IS DERIVED, WHAT IS ASSUMED</h3>';
-  for(const t of TIER){
-    const sub=items.filter(it=>tierOf(it.status)===t);
-    if(!sub.length) continue;
-    html+='<div class="tier t-'+t+'">'+TIER_LABEL[t]+'</div>';
-    html+=sub.map(it=>
-      '<div class="src"><span class="badge b-'+t+'">'+t+'</span>'+
-      '<div><div class="k">'+it.key+' &mdash; '+it.value+'</div>'+
-      (it.eq?'<span class="eq">'+it.eq+'</span>':'')+
-      '<div class="d">'+it.detail+'</div></div></div>').join('');
-  }
-  document.getElementById('sources').innerHTML=html;
+(function renderLabel(){
+  let html='<h3>INPUTS</h3>';
+  html += INPUTS.map(it=>'<div class="inp"><span class="k">'+it.k+'</span>'+
+    '<span class="s"><b style="color:var(--fg)">'+it.v+'</b><br>'+it.s+
+    (it.n?'<em class="hide-pres"> '+it.n+'</em>':'')+'</span></div>').join('');
+  html += '<h3 style="margin-top:12px">DYNAMICS</h3>';
+  html += '<div class="dyn"><b>'+DYN1+'</b> '+DYN2+'</div>';
+  html += '<div class="inp hide-pres" style="border-top:1px solid var(--edge);margin-top:8px">' +
+    '<span class="k">everything else</span><span class="s">Ring radii, the anatomical ' +
+    'scaffold, the order in which a node recruits new targets, the cascade rule and the ' +
+    'lattice couplings are all schematic. No tractography and no functional connectivity ' +
+    'was used, so &ldquo;connection strength&rdquo; here is the scaffold’s own structure ' +
+    'plus the measured T1w/T2w level drop. Nothing in this figure is fitted, and nothing ' +
+    'in it is a measurement of a drug effect.</span></div>';
+  document.getElementById('label2').innerHTML=html;
 })();
 
+/* ---------- load-time checks -------------------------------------------
+   Every number this figure shows should be checkable without reading the
+   source. These print to the console at boot and are re-runnable from
+   window.FIG. */
+function assertDirection(){
+  const N=M.nodes, ex=[]; let checked=0, bad=0;
+  for(const n of N) for(const c of M.cand[n.i]){
+    if(c.lat || c.inv) continue;             // lateral has no radius; an inversion is
+    checked++;                               // by definition the disagreeing case
+    const rSrc=RADII[n.ring], rTgt=RADII[N[c.j].ring];
+    if(!(rTgt>rSrc)){
+      bad++;
+      if(ex.length<10) ex.push(n.p.id+' → '+N[c.j].p.id+'  r '+rSrc+' → '+rTgt);
+    }
+  }
+  if(bad) console.error('[direction] '+bad+' of '+checked+
+    ' non-inverted PREDICTION candidates do not advance outward:', ex);
+  else console.info('[direction] ok — all '+checked+
+    ' non-inverted prediction candidates advance apex → surface (radius increases)');
+  const pairs=Object.entries(M.invPair).sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([k,v])=>({pair:k, cross:v.n, inversions:v.inv, rate:(100*v.inv/v.n).toFixed(1)+'%'}));
+  console.info('[inversions] '+M.nInv+' of '+M.nCross+' cross-level candidates ('+
+    (100*M.nInv/Math.max(1,M.nCross)).toFixed(1)+'%) are T1w/T2w level inversions');
+  if(console.table) console.table(pairs); else console.info(pairs);
+  return {checked, bad, nCross:M.nCross, nInv:M.nInv, pairs};
+}
+/* The direction of the whole story, checked rather than asserted in prose:
+   as precision falls, the number of descending edges must RISE and the mean
+   weight per edge must FALL. If that ever inverts, the figure is drawing the
+   reading of REBUS its critics object to. */
+function assertProliferation(){
+  const keep=+slider.value, rows=[];
+  for(let v=100; v>=0; v-=10){ setPrec(v);
+    rows.push({pi:v, edges:S.nEdge, drive:+(S.drive/M.nodes.length).toFixed(3),
+               perTarget:+S.perTarget.toFixed(3),
+               idx:S.ring.map(x=>x===null?null:+x.toFixed(3)),
+               latticeActive:+(S.lat.frac).toFixed(3), spanRows:S.lat.spanRows}); }
+  setPrec(keep);
+  let bad=0;
+  for(let i=1;i<rows.length;i++){
+    if(rows[i].edges < rows[i-1].edges) bad++;
+    if(rows[i].perTarget > rows[i-1].perTarget+1e-9) bad++;
+  }
+  if(bad) console.error('[proliferation] '+bad+' slider steps go the wrong way', rows);
+  else console.info('[proliferation] ok — edges rise and per-target weight falls monotonically');
+  if(console.table) console.table(rows); else console.info(rows);
+  return rows;
+}
+/* The unlabelled wedge is association cortex, not motor. Printed so the name
+   can be checked against the data rather than taken on trust. */
+function censusWedge(){
+  const w=PARCELS.filter(p=>(p.ring===0||p.ring===1) &&
+    !((p.stream!==undefined?p.stream:p.modality)));
+  const byClass={};
+  w.forEach(p=>{ const k=PAL.ringNames[p.ring]; byClass[k]=(byClass[k]||0)+1; });
+  console.info('[wedge] "'+MODLABEL['null'].replace('\n',' ')+'" holds '+w.length+
+    ' parcels: '+Object.entries(byClass).map(([k,v])=>v+' '+k).join(', ')+
+    ' — association cortex, NOT motor');
+  const r0=PARCELS.filter(p=>p.ring===0);
+  const mot=r0.filter(p=>((p.stream!==undefined?p.stream:p.modality))==='somatomotor');
+  console.info('[ring 0] '+r0.length+' idiotypic parcels, '+mot.length+
+    ' of them somatomotor — ring 0 is a sensorimotor shell, not a sensory input shell');
+  return {wedge:w.length, byClass, ring0:r0.length, ring0Motor:mot.length};
+}
+/* Where the receptor map actually peaks. Worth printing, because it is not
+   where the usual verbal summary of this literature puts it. */
+function censusRho(){
+  const ok=PARCELS.filter(p=>p.rhoValid!==false);
+  const rows=[0,1,2,3].map(r=>{
+    const a=ok.filter(p=>p.ring===r).map(p=>p.rhoRank).sort((x,y)=>x-y);
+    return {ring:PAL.ringNames[r], n:a.length,
+            meanPct:+(100*a.reduce((s,v)=>s+v,0)/a.length).toFixed(1),
+            medianPct:+(100*a[Math.floor(a.length/2)]).toFixed(1)};
+  });
+  console.info('[rho] mean 5-HT2A percentile by Mesulam ring — heteromodal is the ' +
+    'peak and PARALIMBIC IS NOT: medial-temporal allocortex sits at the floor of the map.');
+  if(console.table) console.table(rows); else console.info(rows);
+  return rows;
+}
+
+/* ---------- node count + boot ------------------------------------------ */
 document.getElementById('subtitle').innerHTML =
   'HCP-MMP 360 &middot; Mesulam type &middot; ' +
   (HAS_LEVEL ? 'T1w/T2w level &middot; ' : '') +
@@ -2001,18 +2132,17 @@ if(!HAS_LEVEL){
   w.className='on';
   w.textContent='LEVEL IS A PLACEHOLDER — ring + jitter';
 }
-document.getElementById('hint1').innerHTML +=
-  ' &nbsp;τ is <b>' + (TAU_SRC==='measured' ? 'measured' : 'derived from level') + '</b>.';
 
-/* ---------- node count + boot ------------------------------------------ */
 const nsel=document.getElementById('ncount');
 [140,200,260].forEach(v=>{
   const o=document.createElement('option'); o.value=v; o.textContent=v+' nodes';
   if(v===260) o.selected=true; nsel.appendChild(o);
 });
 nsel.addEventListener('change',()=>{
-  inject=null; injectMsg=null;
-  M=build(+nsel.value); reprecision(); fit(); syncBrain();
+  casc=null; TRIP=null; tripSeed=null;
+  tripBtn.setAttribute('aria-pressed',false); tripBtn.classList.remove('on');
+  M=build(+nsel.value);
+  reprecision(); reciprocal(); relattice(); fit(); syncBrain();
   assertDirection();
 });
 
@@ -2021,33 +2151,44 @@ if(!document.documentElement.getAttribute('data-theme')){
   document.documentElement.setAttribute('data-theme',
     window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
 }
-document.getElementById('theme').textContent =
+themeBtn.textContent =
   document.documentElement.getAttribute('data-theme')==='dark' ? 'Light' : 'Dark';
 
 M=build(260);
-readTheme(); reprecision(); fit(); syncBrain(); setPrec(100);
+readTheme(); reprecision(); reciprocal(); relattice(); fit(); syncBrain(); setPrec(100);
 assertDirection();
 censusWedge();
+censusRho();
 
-/* A deliberate console hook: every number the figure shows should be
-   checkable without reading the source. window.FIG.state() returns the live
-   model; window.FIG.sweep() prints penetration depth across the slider. */
 window.FIG={
-  P, setPrec, redraw:(t)=>draw(t||performance.now()),
-  assertDirection, censusWedge, caption:()=>captionLines(), SHOW,
+  P, setPrec, SHOW, triptych:()=>TRIP,
+  redraw:(t)=>draw(t||performance.now()),
+  assertDirection, assertProliferation, censusWedge, censusRho,
+  fire:(k)=>{ const r0=M.byRing[0]; fireCascade(r0[(k||0)%r0.length]); return casc; },
   pick:()=>PICK, rho:()=>RHO,
-  inversions:()=>({nCross:M.nCross, nInv:M.nInv,
-                   rate:+(M.nInv/M.nCross).toFixed(4), byPair:M.invPair}),
   state:()=>({precision, M, S, HAS_LEVEL, HAS_TAU, TAU_SRC}),
-  injection:()=>({inject, injectMsg}),
-  sweep:(step)=>{ const keep=+slider.value, out=[];
-    for(let v=100; v>=0; v-=(step||10)){ setPrec(v); out.push([v, +S.depth.toFixed(3)]); }
-    setPrec(keep); return out; }
+  /* The ladder across the whole slider, as a table: how many nodes each hop
+     activates at each precision. This is what "hand-tune the recruitment rule
+     so the sweep shows a taper-to-hold transition" was tuned against. */
+  ladders:(step)=>{ const keep=+slider.value, out=[];
+    for(let v=100; v>=0; v-=(step||10)){ setPrec(v);
+      const r0=M.byRing[0];
+      const runs=r0.map(n=>traceCascade(n.i).gens.map(g=>g.length));
+      const maxG=Math.max(...runs.map(r=>r.length));
+      const mean=[]; for(let g=0; g<maxG; g++)
+        mean.push(+(runs.reduce((s,r)=>s+(r[g]||0),0)/runs.length).toFixed(2));
+      out.push({pi:v, hops:maxG-1, ladder:mean.join(' '),
+                nodes:+(runs.reduce((s,r)=>s+r.reduce((a,b)=>a+b,0),0)/runs.length).toFixed(1),
+                deepest:+(r0.reduce((s,n)=>s+traceCascade(n.i).deepest,0)/r0.length).toFixed(2)}); }
+    setPrec(keep);
+    if(console.table) console.table(out);
+    return out; }
 };
 document.getElementById('motion').setAttribute('aria-pressed', motion);
 window.addEventListener('resize',fit);
 (function loop(ts){
-  if(motion || dirty || inject){ dirty=false; draw(ts||0); }
+  if(motion || dirty || casc){ dirty=false; draw(ts||0); if(casc) latDirty=true; }
+  if(latDirty){ latDirty=false; drawLattice(ts||0); }
   requestAnimationFrame(loop);
 })();
 })();
