@@ -1,0 +1,67 @@
+{
+ "parcellation": {
+  "value": "HCP-MMP1 (Glasser 2016), 360 cortical areas",
+  "status": "measured",
+  "detail": "fsaverage 164k annot (figshare 5528816/5528819); fsLR 32k dlabel for the gradient."
+ },
+ "ring": {
+  "value": "Mesulam cortical type, 4 classes",
+  "status": "measured",
+  "detail": "lh/rh.mesulam.annot, MICA-MNI/micaopen (Paquola et al. 2019), fsaverage 164k. Per parcel = modal class over its vertices. Not a proxy: this is the Mesulam laminar-differentiation atlas itself."
+ },
+ "gradient": {
+  "value": "Margulies 2016 principal functional gradient",
+  "status": "measured",
+  "detail": "neuromaps margulies2016/fcgradient01/fsLR/32k, averaged within parcel in its native space."
+ },
+ "rho": {
+  "value": "Beliveau 2017 5-HT2A receptor density, [11C]Cimbi-36 PET",
+  "status": "measured",
+  "detail": "neuromaps beliveau2017/cimbi36/fsaverage/164k (BPnd), averaged within parcel, then min-max normalised across the 360 parcels (raw 0.05-68.34 in the map's native units). 2 allocortical parcel(s) with no valid cortical-ribbon signal are excluded from the normalisation range and flagged rhoValid=false."
+ },
+ "level": {
+  "value": "hierarchical level = inverted T1w/T2w myelin",
+  "status": "measured",
+  "detail": "neuromaps hcps1200/myelinmap/fsLR/32k (HCP S1200 group T1w/T2w ratio), averaged within parcel in fsLR 32k using the same Glasser dlabel as the gradient (raw parcel means 1.078-1.747), then INVERTED and min-max normalised so that high level = low myelin = deep in the hierarchy = INNER ring. The sign matters: every prediction and error arrow in the figure is drawn from the level difference of its two endpoints."
+ },
+ "tau": {
+  "value": "intrinsic timescale, MEG",
+  "status": "measured",
+  "detail": "neuromaps hcps1200/megtimescale/fsLR/4k. Connectome Workbench is deliberately not a dependency of this pipeline, and neuromaps' own 4k->32k transform shells out to it, so each fsLR 32k vertex instead takes the value of the angularly nearest fsLR 4k vertex on the fsLR sphere (pure numpy) and the parcel mean is then taken over 32k vertices exactly as for every other fsLR map. That resample is nearest-neighbour, not areal -- it is the one approximation in this field, and it cannot move a value across a parcel boundary by more than the 4k vertex spacing."
+ },
+ "stream": {
+  "value": "sensory stream, and the colour of every parcel",
+  "status": "derived",
+  "detail": "Glasser's own 22 cortical divisions grouped into streams, at every ring. Colour = that stream's base hue mixed toward transmodal orange by the parcel's Mesulam type, so colour is a property of the parcel alone and the same parcel is the same colour in Panel A and Panel B. Only 9 of the 195 heteromodal/paralimbic parcels sit in a division that names a stream, which is why the two inner rings read as near-uniform orange -- that is the convergence, not a rendering shortcut."
+ },
+ "modality": {
+  "value": "visual / auditory / somatomotor (rings 0-1 only)",
+  "status": "derived",
+  "detail": "Glasser's own 22 cortical divisions grouped into streams. Auditory is a real labelled division in HCP-MMP (Early Auditory + Auditory Association), which is why HCP-MMP was chosen over Schaefer-Yeo7 (Yeo-7 folds auditory into somatomotor). This field drives only the ANGULAR SECTORS, so a stream is a radial slice; it is restricted to rings 0-1 because the sectors are shared by those two rings. A parcel whose division names no stream falls in the unlabelled sector -- that is a gap in Glasser's division names, not a claim about the cortex."
+ },
+ "edges": {
+  "value": "all three edge layers",
+  "status": "assumed",
+  "detail": "Ring geometry, the anatomical scaffold, and both functional edge sets are schematic. No tractography or functional connectivity was used. Only the recruitment ORDER of off-anatomy edges is data-driven (endpoint mean rho)."
+ },
+ "disruption": {
+  "value": "rho x (1 - precision)",
+  "status": "assumed",
+  "detail": "A restatement of the model assumption, not a measurement or a result."
+ },
+ "rhoRank": {
+  "value": "percentile rank of rho across the 360 parcels",
+  "status": "derived (display scaling)",
+  "detail": "The measured 5-HT2A distribution is narrow and left-skewed (interquartile range spans only ~14% of the full range), so a linear encoding of rho is close to invisible on screen. The figure sizes receptor discs and disruption bars by this rank instead. The ORDER is identical to the measured density; the SPACING is not. Measured rho and the raw parcel mean are in parcels.json and in every tooltip."
+ },
+ "tauRank": {
+  "value": "percentile rank of tau across the 360 parcels",
+  "status": "derived (display scaling)",
+  "detail": "Node radius is sized by this rank, not by tau itself. The measured MEG timescale is right-skewed (median 18.1, max 45.5 in the map's units), so a linear encoding leaves almost every node at the small end of the radius scale. The ORDER is identical to the measured timescale; the SPACING is not. The raw value is in parcels.json, in every tooltip, and on the generative-model cards."
+ },
+ "angle": {
+  "value": "angular position within a ring",
+  "status": "measured",
+  "detail": "Nodes are ordered by their Margulies gradient value, so angle carries real information."
+ }
+}

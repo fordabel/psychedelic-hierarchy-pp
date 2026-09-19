@@ -1,0 +1,18 @@
+# Python environment and bytecode — 378 MB, rebuilt from the scripts.
+.venv/
+__pycache__/
+*.pyc
+
+# Downloaded atlases (5.7 MB): FreeSurfer .annot and the Glasser .dlabel.
+# build_assets.py re-fetches these; they are inputs, not source.
+cache/
+
+# Generated bundles (1 MB each). bundle_standalone.py rebuilds both from
+# figure.html + assets/ in a couple of seconds, so keeping them here would
+# just add a megabyte of churn to every commit.
+figure_standalone.html
+figure_artifact.html
+
+# Superseded by this repository's own history — see SPEC.md R10.
+# Left on disk, untracked, until you decide to retire them.
+*.bak
