@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel C prototype — criticality with no brain in it</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0f1116; --panel:#161922; --edge:#252a36; --fg:#e8ebf2; --dim:#98a0b0;
+    --faint:#69707e; --shadow:rgba(0,0,0,.45); --focus:#f0a06e;
+    --dead:#07080c;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      color-scheme:light;
+      --bg:#f6f7f9; --panel:#fff; --edge:#dfe3ea; --fg:#171b23; --dim:#5c6472;
+      --faint:#8a92a1; --shadow:rgba(20,25,35,.10); --focus:#b8451a; --dead:#0b0c11;
+    }
+  }
+  :root[data-theme="light"]{
+    color-scheme:light;
+    --bg:#f6f7f9; --panel:#fff; --edge:#dfe3ea; --fg:#171b23; --dim:#5c6472;
+    --faint:#8a92a1; --shadow:rgba(20,25,35,.10); --focus:#b8451a; --dead:#0b0c11;
+  }
+  *{box-sizing:border-box}
+  :where(button,select,input):focus-visible{outline:2px solid var(--focus); outline-offset:2px; border-radius:6px}
+  html,body{height:100%}
+  body{margin:0; background:var(--bg); color:var(--fg); overflow:hidden;
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  #app{display:flex; flex-direction:column; height:100vh; padding:12px 16px 10px; gap:10px}
+  header{display:flex; align-items:baseline; gap:12px; flex:0 0 auto; flex-wrap:wrap}
+  header h1{font-size:15px; font-weight:600; margin:0; letter-spacing:.2px}
+  header .sub{font-size:12px; color:var(--dim)}
+  header .spacer{flex:1}
+  .ghost{background:transparent; color:var(--dim); border:1px solid var(--edge);
+    border-radius:7px; padding:5px 11px; font:inherit; font-size:12.5px; cursor:pointer}
+  .ghost:hover{color:var(--fg); border-color:var(--faint)}
+  .ghost[aria-pressed="true"]{background:var(--fg); color:var(--bg); border-color:var(--fg)}
+
+  .panel{background:var(--panel); border:1px solid var(--edge); border-radius:12px;
+    box-shadow:0 1px 3px var(--shadow); display:flex; flex-direction:column; min-height:0; flex:1 1 auto}
+  .phead{display:flex; align-items:center; gap:9px; padding:9px 14px 8px;
+    border-bottom:1px solid var(--edge); flex:0 0 auto; flex-wrap:wrap}
+  .ptag{font-size:11px; font-weight:700; letter-spacing:.10em; color:var(--faint)}
+  .ptitle{font-size:13px; font-weight:600}
+  .phead .spacer{flex:1}
+  .hint{font-size:11.5px; color:var(--faint)}
+  .chips{display:flex; gap:6px; flex-wrap:wrap}
+  .chip{background:transparent; color:var(--dim); border:1px solid var(--edge);
+    border-radius:999px; padding:3px 10px; font:inherit; font-size:11.5px; cursor:pointer}
+  .chip.on{background:var(--fg); color:var(--bg); border-color:var(--fg)}
+  select.chip{border-radius:7px; padding:4px 8px}
+
+  .cvwrap{position:relative; flex:1 1 auto; min-height:0; margin:0}
+  #ca{position:absolute; inset:0; width:100%; height:100%; display:block;
+      background:var(--dead); border-radius:0 0 11px 11px}
+  .axwrap{flex:0 0 auto; padding:8px 14px 2px}
+  #ax{display:block; width:100%; height:126px}
+  .foot{flex:0 0 auto; padding:6px 14px 11px; display:flex; gap:14px; align-items:center; flex-wrap:wrap}
+  .foot .row{display:flex; align-items:center; gap:8px}
+  .foot label{font-size:11.5px; color:var(--dim)}
+  input[type=range]{width:220px; accent-color:var(--focus)}
+  .val{font-variant-numeric:tabular-nums; font-size:12px; color:var(--fg); min-width:2.6em}
+  .note{font-size:11px; color:var(--faint); padding:0 14px 10px; line-height:1.5}
+  .note b{color:var(--dim); font-weight:600}
+  :root[data-solo="1"] header, :root[data-solo="1"] .note{display:none}
+  :root[data-solo="1"] #app{padding:0}
+  :root[data-solo="1"] .panel{border:0; border-radius:0; box-shadow:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Panel C prototype <span class="sub">&mdash; the same transition in a system with no brain in it</span></h1>
+    <span class="spacer"></span>
+    <button class="ghost" id="pop">Pop out &#8599;</button>
+    <button class="ghost" id="png">Save PNG</button>
+    <button class="ghost" id="theme">Light</button>
+  </header>
+
+  <section class="panel">
+    <div class="phead">
+      <span class="ptag">PANEL C</span>
+      <span class="ptitle">Criticality without anatomy &mdash; a 1-D automaton on the same knob</span>
+      <span class="spacer"></span>
+      <span class="hint" id="stat"></span>
+    </div>
+
+    <div class="cvwrap"><canvas id="ca"></canvas></div>
+    <div class="axwrap"><canvas id="ax"></canvas></div>
+
+    <div class="foot">
+      <div class="row">
+        <label for="pi">prior precision &pi;</label>
+        <input type="range" id="pi" min="0" max="100" value="66" step="1">
+        <span class="val" id="piv">66</span>
+      </div>
+      <div class="chips">
+        <button class="chip on" id="cRun" aria-pressed="true">running</button>
+        <button class="chip" id="cRestart">restart world</button>
+        <button class="chip" id="cReroll">new rule set</button>
+        <button class="chip" id="cRagged" aria-pressed="false">allow ragged</button>
+        <select class="chip" id="fill">
+          <option value="clump">fill: clump</option>
+          <option value="rand" selected>fill: random</option>
+          <option value="dot">fill: one dot</option>
+        </select>
+        <select class="chip" id="kstates">
+          <option value="6">6 states</option>
+          <option value="12" selected>12 states</option>
+          <option value="20">20 states</option>
+        </select>
+        <select class="chip" id="speed">
+          <option value="1">1 row/frame</option>
+          <option value="2" selected>2 rows/frame</option>
+          <option value="4">4 rows/frame</option>
+        </select>
+      </div>
+    </div>
+    <div class="note" id="note"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+/* ========================================================================
+ *  PANEL C PROTOTYPE
+ *
+ *  What this panel argues: the regime change the figure shows on cortical
+ *  wiring is generic to this KIND of system. There is no parcellation here,
+ *  no receptor map, no T1w/T2w ordering -- nothing that could make the
+ *  transition an artefact of the anatomy. One scalar knob still sweeps it
+ *  from dies-out to holds to spreads.
+ *
+ *  It is a 1-D cellular automaton after Langton's lambda, in the form David
+ *  Eck's applet uses (math.hws.edu/eck/js/edge-of-chaos/CA.html).
+ *
+ *  THREE THINGS TO KNOW BEFORE READING THE CODE
+ *
+ *  1. sigma is NOT the order parameter here, and cannot be. In a 1-D
+ *     automaton with a radius-1 neighbourhood the damage cone widens by at
+ *     most one cell per side per step, so the number of damaged cells grows
+ *     LINEARLY and d(t+1)/d(t) -> 1 by geometry, not by dynamics. Measured,
+ *     it pins at ~1.14 in every chaotic rule set, which is a picture of the
+ *     light cone and nothing else. Panel A's sigma is meaningful because its
+ *     branching runs on a network with ~3.67 targets per node and no such
+ *     bound. The two systems do not share a statistic.
+ *
+ *  2. They share an EVENT instead. Panel B asks whether a patch spans a
+ *     level -- percolation in space. Panel C asks whether a perturbation
+ *     still exists later -- percolation in spacetime. Same question, one
+ *     axis apart, and both answer in the vocabulary the freeze-frame already
+ *     uses: dies out / holds / spreads.
+ *
+ *  3. lambda_c is MEASURED, never assumed. Eck warns the edge is not at a
+ *     fixed lambda; swept here across eight rule seeds it ran from 0.13 to
+ *     0.58 (sd ~0.15). So the panel measures its own critical point at boot
+ *     and anchors the mapping to that. Re-rolling the rules moves the edge
+ *     and the anchor follows it -- which is the honest demonstration that
+ *     the claim was never about a magic number.
+ * ===================================================================== */
+
+const P = {
+  /* --- automaton ----------------------------------------------------- */
+  K:        12,          // states; 0 is dead. Rules = K * K(K+1)/2.
+  /* Rule seed. NOT arbitrary, and not fitted either -- chosen by a declared
+     criterion over 220 seeds: the survival curve must rise without falling
+     back (total backward movement 0) and put its edge inside 0.30-0.70.
+
+     The criterion exists because survival against lambda is a STAIRCASE, not
+     a ramp. On the previous default (20260919) it read 0.39 at lambda = 0.54,
+     dropped to 0.03 through 0.55-0.58, then recovered to 0.57 -- verified at
+     400 trials across three independent probe seeds, so it is structure in
+     the rule set, not sampling noise. Swept live, that is a world that dies,
+     revives and dies again, which reads as a bug. It is also the real
+     Mitchell-Hraber-Crutchfield result: lambda does not cleanly index the
+     transition.
+
+     A second criterion is legibility, and the repo already works this way:
+     Panel B's LAT0/LAT1 were solved so its sweep spans 25-75% instead of
+     saturating. A rule set whose survival curve is a single STEP shows the
+     transition but gives the slider nothing to do. So the default is also
+     chosen for transition WIDTH -- the lambda span from 5% to 95% survival.
+
+     Over 400 seeds: 45% are monotone, and 44 (11%) are monotone AND at least
+     0.15 wide with the edge in 0.30-0.65. This one is monotone (falls back
+     0.00), 0.50 wide, lambda_c ~0.31. Verified at 200 trials against a probe
+     seed different from the one used to search, so the choice is not an
+     artefact of the search.
+
+     The curve is drawn under the axis at all times, so raggedness is never
+     hidden -- press "new rule set", or "allow ragged", and watch it move. */
+  RULE_SEED:3072572,
+  CLEAN_TRIES:12,        // reroll attempts before accepting a ragged set
+  CURVE_N:  40,          // grid points in the survival curve
+  CELL:     2,           // px per cell
+  ROWS_PF:  2,           // rows advanced per animation frame
+
+  /* --- the survival probe (Panel C's order parameter) ---------------- */
+  PR_W:     400,         // probe world width
+  PR_TRIALS:48,          // damage trials per lambda
+  PR_T:     60,          // steps before a surviving perturbation counts
+  PR_SEED:  20260919,
+  PR_FILL:  0.5,
+  PR_CROSS: 0.5,         // survival fraction that defines lambda_c
+
+  /* --- calibration: pi -> lambda -------------------------------------
+     Anchored, not fitted. Three points, piecewise linear:
+
+        pi = 100        lambda_c - LAM_BELOW    the model holds; damage dies
+        pi = PI_SPAN    lambda_c                the measured edge
+        pi = 0          lambda_c + LAM_ABOVE    past it, and stopping short
+                                                of the far chaotic end
+
+     PI_SPAN is Panel B's percolation point -- the pi at which a patch first
+     spans a level. Anchoring there says the two panels place the SAME EVENT
+     at the SAME pi, which is the claim, and it is checkable by eye because
+     both marks are drawn.
+
+     LAM_ABOVE is deliberately short of lambda = 1. The far end of the axis
+     (dense, structureless) is drawn but never entered: the figure's standing
+     position is that the model approaches its transition and does not run
+     away past it. Sustained runaway in cortex is a seizure, not a
+     psychedelic -- see SPEC decision 5.                                  */
+  PI_SPAN:  66,
+  LAM_BELOW:0.24,
+  LAM_ABOVE:0.15,
+  /* Shaping exponents on the two branches. A LINEAR pi -> lambda wastes the
+     top third of the slider: critical slowing-down only sets in right next to
+     lambda_c, so pi 100..72 all render as a black panel and nothing visibly
+     changes until the edge is nearly reached. Measured on the linear map,
+     mean damage lifetime went 1.5 -> 3.3 steps across pi 100..80 and only
+     then jumped to 19.6 by pi 70.
+
+     SHAPE_LO < 1 makes lambda climb fast out of the dead zone and then creep
+     up on lambda_c, so the sub-critical half shows transients that visibly
+     LENGTHEN -- which is what critical slowing-down looks like, and is the
+     thing worth seeing there.
+
+     With the default rule set the curve is already gradual, so both are 1 --
+     a plain linear map, and one less tuned constant to defend. They are kept
+     because a rule set with a STEP transition needs SHAPE_LO < 1 to be
+     legible, and "allow ragged" can produce one. */
+  SHAPE_LO: 1.00,
+  SHAPE_HI: 1.00,
+
+  /* --- colour ---------------------------------------------------------
+     Vibrant and deliberately NOT the Mesulam four. Those hexes
+     (#3a78c0 #17958c #9b76d8 #e2761a) mean cortical type everywhere else in
+     the figure, and R3 makes colour identity load-bearing: a cell here is
+     not a parcel and must not be mistakable for one. Generated on a golden
+     -angle hue walk at high chroma, so blues, greens and oranges appear but
+     at values no Mesulam ring uses.                                      */
+  PAL_SEED: 5150,
+  PAL_SAT:  92,
+  PAL_LIT:  62
+};
+
+/* ---------- rng ---------------------------------------------------------- */
+function mulberry32(a){
+  return function(){
+    a|=0; a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+
+/* ---------- rule set -----------------------------------------------------
+   Isotropic radius-1: (l,c,r) and (r,c,l) are one rule, so the count is
+   K * K(K+1)/2 -- 4200 at K=20, which is the number Eck's applet prints, and
+   the check that the indexing is right.
+
+   Every rule but the all-dead one gets a random LIVING output and a random
+   place in an activation order. lambda is the fraction of that order switched
+   on; the rest output dead. Because the order is fixed, raising lambda only
+   ever ADDS rules: the sweep is nested and monotone, and nothing re-rolls
+   under the slider. That is what makes a coupled slider possible at all. */
+function makeRules(K, seed){
+  const rnd=mulberry32(seed);
+  const PAIRS=K*(K+1)/2, N=K*PAIRS;
+  const out=new Uint8Array(N);
+  for(let i=0;i<N;i++) out[i]=1+Math.floor(rnd()*(K-1));
+  const pairIdx=new Int32Array(K*K);
+  for(let a=0;a<K;a++) for(let b=0;b<K;b++){
+    const lo=Math.min(a,b), hi=Math.max(a,b);
+    pairIdx[a*K+b]=lo*K-(lo*(lo-1))/2+(hi-lo);
+  }
+  const DEAD=0*PAIRS+pairIdx[0];
+  out[DEAD]=0;                                  // quiescence is absorbing
+  const order=[];
+  for(let i=0;i<N;i++) if(i!==DEAD) order.push(i);
+  for(let i=order.length-1;i>0;i--){
+    const j=Math.floor(rnd()*(i+1)), t=order[i]; order[i]=order[j]; order[j]=t;
+  }
+  const rank=new Int32Array(N).fill(-1);
+  order.forEach((ri,k)=>{ rank[ri]=k; });
+  return {K, PAIRS, N, out, pairIdx, rank, DEAD, nAct:order.length, seed};
+}
+/* lambda -> one flat lookup table. The whole automaton is a Uint8Array. */
+function bake(R, lam){
+  const on=Math.round(Math.max(0,Math.min(1,lam))*R.nAct);
+  const tab=new Uint8Array(R.N);
+  for(let i=0;i<R.N;i++){ const rk=R.rank[i]; tab[i]=(rk>=0&&rk<on)?R.out[i]:0; }
+  tab[R.DEAD]=0;
+  return {tab, rulesOn:on+1, lambda:on/R.nAct};   // +1: the all-dead rule is always in use
+}
+function step(R, tab, src, dst){
+  const W=src.length, K=R.K, PAIRS=R.PAIRS, pidx=R.pairIdx;
+  for(let i=0;i<W;i++){
+    const l=src[i===0?W-1:i-1], c=src[i], r=src[i===W-1?0:i+1];
+    dst[i]=tab[c*PAIRS+pidx[l*K+r]];
+  }
+}
+
+/* ---------- the order parameter: damage survival -------------------------
+   Two copies of one world differing in a single cell. The perturbation
+   SURVIVES if the copies still disagree anywhere after PR_T steps.
+
+   This is Panel B's question moved one axis over. B asks whether a patch of
+   co-activation reaches across a level; C asks whether a perturbation
+   reaches across time. Both are percolation, both answer yes or no, and the
+   figure already has words for the answer.
+
+   Per R7 nothing printed comes from a single draw: this is a fraction over
+   PR_TRIALS trials from a stated seed. */
+function survival(R, tab, o){
+  o=Object.assign({W:P.PR_W, trials:P.PR_TRIALS, T:P.PR_T, seed:P.PR_SEED, fill:P.PR_FILL}, o||{});
+  const rnd=mulberry32(o.seed), W=o.W;
+  let a=new Uint8Array(W), b=new Uint8Array(W), a2=new Uint8Array(W), b2=new Uint8Array(W);
+  let surv=0, sumLife=0;
+  for(let t=0;t<o.trials;t++){
+    for(let i=0;i<W;i++){ a[i]= rnd()<o.fill ? 1+Math.floor(rnd()*(R.K-1)) : 0; b[i]=a[i]; }
+    const p=Math.floor(rnd()*W);
+    let nv=1+Math.floor(rnd()*(R.K-1)); if(nv===b[p]) nv = nv===R.K-1 ? 1 : nv+1;
+    b[p]=nv;
+    let alive=true, life=0;
+    for(let s=0;s<o.T&&alive;s++){
+      step(R,tab,a,a2); step(R,tab,b,b2);
+      let any=false;
+      for(let i=0;i<W;i++) if(a2[i]!==b2[i]){ any=true; break; }
+      let tmp; tmp=a;a=a2;a2=tmp; tmp=b;b=b2;b2=tmp;
+      if(!any) alive=false; else life=s+1;
+    }
+    if(alive) surv++;
+    sumLife+=life;
+  }
+  return {survival:surv/o.trials, meanLife:sumLife/o.trials,
+          trials:o.trials, T:o.T, seed:o.seed};
+}
+
+/* The whole survival curve in one pass, and lambda_c read off it by linear
+   interpolation at the crossing. One sweep instead of a bracket-plus-
+   bisection: same cost (~200 ms at boot, alongside the figure's existing
+   percolationPi sweep) and it hands back the curve, which gets DRAWN. A
+   critical point asserted as a bare number invites the reader to take it on
+   faith; drawn on its own curve it can be checked by eye, including when the
+   curve is ragged. */
+function survivalCurve(R){
+  const N=P.CURVE_N, ys=new Float64Array(N+1);
+  for(let i=0;i<=N;i++) ys[i]=survival(R,bake(R,i/N).tab).survival;
+  let lc=null;
+  for(let i=1;i<=N;i++){
+    if(ys[i]>=P.PR_CROSS && ys[i-1]<P.PR_CROSS){
+      const t=(P.PR_CROSS-ys[i-1])/(ys[i]-ys[i-1] || 1);
+      lc=((i-1)+t)/N; break;
+    }
+  }
+  // total backward movement: how far the curve falls as lambda rises. 0 is a
+  // clean monotone transition; the discarded default scored 0.53.
+  let drop=0;
+  for(let i=1;i<=N;i++){ const d=ys[i-1]-ys[i]; if(d>0) drop+=d; }
+  return {ys, lc, drop:+drop.toFixed(3), N};
+}
+
+/* ---------- pi -> lambda, anchored --------------------------------------- */
+function lamLo(){ return Math.max(0.02, LC - P.LAM_BELOW); }
+function lamHi(){ return Math.min(0.98, LC + P.LAM_ABOVE); }
+function lamOf(pi){
+  if(LC===null) return 0;
+  const lo=lamLo(), hi=lamHi();
+  if(pi>=P.PI_SPAN){                            // 100 .. PI_SPAN  ->  lo .. LC
+    const u=(100-pi)/(100-P.PI_SPAN);
+    return lo+(LC-lo)*Math.pow(u, P.SHAPE_LO);
+  }
+  const u=(P.PI_SPAN-pi)/P.PI_SPAN;             // PI_SPAN .. 0    ->  LC .. hi
+  return LC+(hi-LC)*Math.pow(u, P.SHAPE_HI);
+}
+/* The ghost mark. Panel A's sigma tops out at 0.95 and never reaches 1, so
+   sigma-matching alone would leave this panel short of its own edge forever.
+   The anchored mark above is the live state; this is where sigma-matching
+   WOULD put it, drawn as a ghost so a disagreement between the two is
+   visible instead of tidied away -- the same discipline R6 applies to level
+   inversions. In the prototype sigmaA is a stand-in; in the figure it reads
+   FIG.sigma().sigma. */
+function lamSigmaMatched(sigmaA){
+  if(LC===null) return null;
+  const lo=lamLo(), hi=lamHi();
+  return Math.max(lo, Math.min(hi, lo+(hi-lo)*Math.max(0,Math.min(1,sigmaA))));
+}
+function regimeOf(s){                            // one vocabulary, shared with the figure
+  if(s<0.15) return 'dies out';
+  if(s<0.5)  return 'flickers';
+  if(s<0.85) return 'holds';
+  return 'spreads';
+}
+
+/* ---------- palette ------------------------------------------------------ */
+let COLS=[];
+function makePalette(K, seed){
+  const rnd=mulberry32(seed);
+  const out=['#000000'];                         // state 0 = dead, painted as background
+  let h=rnd()*360;
+  for(let i=1;i<K;i++){
+    h=(h+137.508+ (rnd()-0.5)*18) % 360;         // golden angle, lightly jittered
+    const s=P.PAL_SAT-rnd()*14, l=P.PAL_LIT+(rnd()-0.5)*16;
+    out.push(hsl2hex(h,s,l));
+  }
+  return out;
+}
+function hsl2hex(h,s,l){
+  s/=100; l/=100;
+  const k=n=>(n+h/30)%12, a=s*Math.min(l,1-l);
+  const f=n=>l-a*Math.max(-1,Math.min(Math.min(k(n)-3,9-k(n)),1));
+  const g=v=>Math.round(255*v).toString(16).padStart(2,'0');
+  return '#'+g(f(0))+g(f(8))+g(f(4));
+}
+
+/* ======================================================================== *
+ *  STATE
+ * ===================================================================== */
+let R=null, LC=null, TAB=null, RULES_ON=0, LAM=0, SURV=null, CURVE=null;
+let world=null, next=null, W=0, HROWS=0, head=0;
+let off=null, octx=null, rowImg=null;
+let running=true, pi=66, sigmaA=0.80, REJECTED=0;            // sigmaA: stand-in for FIG.sigma()
+let fillMode='rand', dirty=true;
+
+const ca=document.getElementById('ca'), cctx=ca.getContext('2d');
+const ax=document.getElementById('ax'), actx=ax.getContext('2d');
+const statEl=document.getElementById('stat'), noteEl=document.getElementById('note');
+
+function cssv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+/* ---------- world -------------------------------------------------------- */
+function seedWorld(){
+  // fit() builds the buffers before build() has made a rule set, so this is
+  // reachable with R === null on the very first layout pass.
+  if(!world || !R) return;
+  world.fill(0);
+  const rnd=mulberry32((Date.now()&0xffff)^R.seed);
+  if(fillMode==='dot'){ world[W>>1]=1+Math.floor(rnd()*(R.K-1)); }
+  else if(fillMode==='clump'){
+    const a=Math.floor(W*0.44), b=Math.floor(W*0.56);
+    for(let i=a;i<b;i++) world[i]=1+Math.floor(rnd()*(R.K-1));
+  } else {
+    for(let i=0;i<W;i++) world[i]= rnd()<0.5 ? 1+Math.floor(rnd()*(R.K-1)) : 0;
+  }
+  if(octx){ octx.fillStyle=cssv('--dead')||'#07080c'; octx.fillRect(0,0,W,HROWS); }
+  head=0;
+}
+
+function fit(){
+  const r=ca.parentElement.getBoundingClientRect();
+  const dpr=Math.min(3, window.devicePixelRatio||1);
+  ca.width=Math.max(1,Math.round(r.width*dpr));
+  ca.height=Math.max(1,Math.round(r.height*dpr));
+  const nW=Math.max(40, Math.floor(r.width/P.CELL));
+  const nH=Math.max(40, Math.floor(r.height/P.CELL));
+  if(nW!==W || nH!==HROWS){
+    W=nW; HROWS=nH;
+    world=new Uint8Array(W); next=new Uint8Array(W);
+    off=document.createElement('canvas'); off.width=W; off.height=HROWS;
+    octx=off.getContext('2d', {willReadFrequently:false});
+    octx.imageSmoothingEnabled=false;
+    rowImg=octx.createImageData(W,1);
+    seedWorld();
+  }
+  const ar=ax.getBoundingClientRect();
+  ax.width=Math.max(1,Math.round(ar.width*dpr));
+  ax.height=Math.max(1,Math.round(ar.height*dpr));
+  dirty=true;
+}
+
+/* One row: advance the automaton, paint it into the ring buffer. */
+function advance(){
+  step(R,TAB,world,next);
+  const t=world; world=next; next=t;
+  const d=rowImg.data;
+  for(let i=0;i<W;i++){
+    const v=world[i], c=COLS[v]||'#000';
+    const n=i*4;
+    if(v===0){ d[n]=0; d[n+1]=0; d[n+2]=0; d[n+3]=0; }
+    else{
+      d[n]=parseInt(c.slice(1,3),16);
+      d[n+1]=parseInt(c.slice(3,5),16);
+      d[n+2]=parseInt(c.slice(5,7),16);
+      d[n+3]=255;
+    }
+  }
+  octx.clearRect(0,head,W,1);
+  octx.putImageData(rowImg,0,head);
+  head=(head+1)%HROWS;
+}
+
+/* Scroll by drawing the ring buffer in two slices: newest row at the bottom. */
+function paint(){
+  cctx.setTransform(1,0,0,1,0,0);
+  cctx.fillStyle=cssv('--dead')||'#07080c';
+  cctx.fillRect(0,0,ca.width,ca.height);
+  cctx.imageSmoothingEnabled=false;
+  const sc=ca.height/HROWS, sw=ca.width;
+  const below=HROWS-head;
+  cctx.drawImage(off, 0, head, W, below,  0, 0,          sw, below*sc);
+  cctx.drawImage(off, 0, 0,    W, head,   0, below*sc,   sw, head*sc);
+}
+
+/* ---------- the lambda axis ---------------------------------------------- */
+function drawAxis(){
+  /* The lambda axis and, under it, the survival curve this panel's critical
+     point is READ OFF. Laid out so the curve gets a band with a usable aspect
+     -- at 17px against a 1900px axis it drew as a flat line and told the
+     reader nothing, which is the opposite of the point of drawing it. */
+  const dpr=Math.min(3, window.devicePixelRatio||1);
+  actx.setTransform(dpr,0,0,dpr,0,0);
+  const w=ax.width/dpr, h=ax.height/dpr;
+  actx.clearRect(0,0,w,h);
+  const fg=cssv('--fg'), dim=cssv('--dim'), faint=cssv('--faint'), edge=cssv('--edge');
+  const HOT='#ff3d7f', GHOST='#6fd3ff', WARN='#e0a33a';
+  const L=10, Rr=w-10, y=26, X=v=>L+(Rr-L)*v;
+  const cy0=46, cH=40;                        // survival-curve band
+  actx.textBaseline='alphabetic';
+
+  if(LC===null){
+    actx.fillStyle=faint; actx.font='11px system-ui'; actx.textAlign='left';
+    actx.fillText('no critical point for this rule set — damage never survives', L, y);
+    return;
+  }
+  const lo=lamLo(), hi=lamHi();
+
+  /* --- the band the slider sweeps, and the stretch it never enters -------
+     Drawing the unreachable part rather than cropping the axis to the part
+     that moves: the figure's position is that this model approaches its
+     transition and stops short of running away, and a claim about where it
+     does NOT go needs somewhere to be visible. */
+  actx.fillStyle=edge;
+  actx.fillRect(X(hi), y-6, X(1)-X(hi), 12);
+  actx.fillStyle='rgba(255,61,127,0.18)';
+  actx.fillRect(X(lo), y-6, X(hi)-X(lo), 12);
+  actx.strokeStyle=edge; actx.lineWidth=1;
+  actx.beginPath(); actx.moveTo(L,y); actx.lineTo(Rr,y); actx.stroke();
+
+  actx.font='8.5px system-ui'; actx.fillStyle=faint;
+  actx.textAlign='center';
+  actx.fillText('swept by π', (X(lo)+X(hi))/2, y-11);
+  actx.fillText('not entered', (X(hi)+X(1))/2, y-11);
+
+  /* --- the survival curve, full width ---------------------------------- */
+  if(CURVE){
+    actx.strokeStyle=edge; actx.lineWidth=1; actx.setLineDash([1,3]);
+    actx.beginPath();                              // the 1/2 crossing
+    actx.moveTo(L, cy0+cH*0.5); actx.lineTo(Rr, cy0+cH*0.5); actx.stroke();
+    actx.setLineDash([]);
+    actx.beginPath();
+    for(let i=0;i<=CURVE.N;i++){
+      const qx=X(i/CURVE.N), qy=cy0+cH*(1-Math.max(0,Math.min(1,CURVE.ys[i])));
+      i ? actx.lineTo(qx,qy) : actx.moveTo(qx,qy);
+    }
+    actx.strokeStyle=HOT; actx.lineWidth=1.4; actx.stroke();
+
+    actx.font='8px system-ui'; actx.textAlign='right'; actx.fillStyle=faint;
+    actx.fillText('1', L-2, cy0+3);
+    actx.fillText('0', L-2, cy0+cH+3);
+  }
+
+  /* --- the three marks, each drawn through BOTH the axis and the curve --- */
+  const mark=(v,col,dash,lw)=>{
+    actx.save();
+    actx.setLineDash(dash); actx.strokeStyle=col; actx.lineWidth=lw;
+    actx.beginPath(); actx.moveTo(X(v), y-8); actx.lineTo(X(v), cy0+cH+4); actx.stroke();
+    actx.restore();
+  };
+  mark(LC, HOT, [], 1.4);                                    // measured edge
+  const gm=lamSigmaMatched(sigmaA);
+  if(gm!==null) mark(gm, GHOST, [2,3], 1.2);                 // sigma-matched ghost
+  actx.fillStyle=fg;                                          // live position
+  actx.beginPath();
+  actx.moveTo(X(LAM),y-1); actx.lineTo(X(LAM)-6,y-12); actx.lineTo(X(LAM)+6,y-12);
+  actx.closePath(); actx.fill();
+
+  actx.textAlign='left'; actx.fillStyle=faint; actx.font='8.5px system-ui';
+  actx.fillText('λ 0', L, y+15);
+  actx.textAlign='right'; actx.fillText('1', Rr, y+15);
+
+  /* --- one readout row. Labels live HERE, not on the curve, because at this
+     aspect any in-plot label lands on the line it is describing. --------- */
+  const ry=cy0+cH+18;
+  actx.textAlign='left';
+  actx.font='700 11.5px system-ui'; actx.fillStyle=dim;
+  const word = SURV?regimeOf(SURV.survival):'';
+  actx.fillText(word, L, ry);
+  const wx = L + actx.measureText(word).width + 12;
+
+  actx.font='9.5px system-ui'; actx.fillStyle=faint;
+  actx.fillText('damage survival vs λ, '+P.PR_TRIALS+' trials × '+P.PR_T+
+                ' steps, seed '+P.PR_SEED+'  ·  dotted = the ½ crossing that defines λᴄ',
+                wx, ry);
+
+  const r2=ry+13;
+  actx.font='700 9px system-ui'; actx.fillStyle=HOT;
+  actx.fillText('λᴄ '+LC.toFixed(3)+' measured', L, r2);
+  let cx=L+actx.measureText('λᴄ '+LC.toFixed(3)+' measured').width+14;
+  actx.fillStyle=fg; actx.font='9px system-ui';
+  actx.fillText('λ '+LAM.toFixed(3)+' now', cx, r2);
+  cx+=actx.measureText('λ '+LAM.toFixed(3)+' now').width+14;
+  if(gm!==null){
+    actx.fillStyle=GHOST;
+    actx.fillText('σ-matched would be λ '+gm.toFixed(3), cx, r2);
+    cx+=actx.measureText('σ-matched would be λ '+gm.toFixed(3)).width+14;
+  }
+  actx.fillStyle=faint;
+  actx.fillText('lifetime '+(SURV?SURV.meanLife.toFixed(0):'--')+'/'+P.PR_T, cx, r2);
+
+  /* Whether THIS rule set's transition is clean, said out loud. A ragged one
+     is not an error and is not hidden -- it is the Mitchell-Hraber-Crutchfield
+     result, and the curve above already shows it. */
+  let qual='';
+  if(CURVE){
+    qual = (CURVE.drop>0.10 ? 'ragged · curve falls back '
+                            : 'monotone · falls back ') + CURVE.drop.toFixed(2);
+    if(REJECTED) qual += '  · '+REJECTED+' ragged set'+(REJECTED>1?'s':'')+' skipped';
+  }
+  actx.textAlign='right';
+  actx.fillStyle = (CURVE && CURVE.drop>0.10) ? WARN : faint;
+  actx.font='9px system-ui';
+  actx.fillText(qual, Rr, r2);
+}
+
+/* ---------- recompute on pi change --------------------------------------- */
+let probeTimer=0;
+function setPi(v, quiet){
+  pi=Math.max(0,Math.min(100,Math.round(v)));
+  document.getElementById('pi').value=pi;
+  document.getElementById('piv').textContent=pi;
+  LAM=lamOf(pi);
+  const b=bake(R,LAM); TAB=b.tab; RULES_ON=b.rulesOn;
+  // The survival probe is ~5 ms; debounce it so a drag stays at 60 fps.
+  clearTimeout(probeTimer);
+  probeTimer=setTimeout(()=>{ SURV=survival(R,TAB); refresh(); }, 60);
+  refresh();
+  if(!quiet) relay({t:'pi', pi});
+}
+function refresh(){
+  statEl.textContent=R.K+' states · 3 neighbours · isotropic · '+
+    R.N.toLocaleString()+' rules · '+RULES_ON.toLocaleString()+' in use · λ '+LAM.toFixed(3);
+  dirty=true;
+}
+
+/* ---------- boot --------------------------------------------------------- */
+function build(K, seed, requireClean){
+  let tries=0, cand=null;
+  // On a reroll, keep drawing rule sets until one has a clean transition --
+  // ~45% do, so this lands in two or three tries. The count is reported, and
+  // that IS the teaching point: the edge is not guaranteed to be tidy.
+  do{
+    const sd = (seed==null) ? ((Math.random()*1e9)|0) : seed;
+    const Rn = makeRules(K, sd);
+    const cv = survivalCurve(Rn);
+    cand = {R:Rn, cv, sd};
+    tries++;
+    if(!requireClean || (cv.lc!==null && cv.drop<0.10 && cv.lc>=0.20 && cv.lc<=0.80)) break;
+    seed=null;
+  } while(tries<P.CLEAN_TRIES);
+  R=cand.R; CURVE=cand.cv; LC=cand.cv.lc; REJECTED=tries-1;
+  COLS=makePalette(K, P.PAL_SEED^cand.sd);
+  setPi(pi, true);
+  SURV=survival(R,TAB);
+  seedWorld();
+  noteEl.innerHTML=
+    '<b>Why this panel is not drawn from &sigma;.</b> In a 1-D automaton the damage cone widens by at most one cell '+
+    'per side per step, so the number of damaged cells grows linearly and d(t+1)/d(t) &rarr; 1 by geometry. '+
+    'Measured, it pins near 1.14 in every chaotic rule set &mdash; a picture of the light cone, not of the dynamics. '+
+    'Panel A&rsquo;s &sigma; is meaningful because its branching runs on a network with no such bound. '+
+    'So the panels share an <b>event</b>, not a statistic: Panel B asks whether a patch spans a level (percolation in space), '+
+    'Panel C asks whether a perturbation still exists later (percolation in spacetime), and both answer in the '+
+    'freeze-frame&rsquo;s own words.  <b>&lambda;<sub>C</sub> is measured, not assumed</b> &mdash; across eight rule seeds it ran '+
+    '0.13&ndash;0.58, so the mapping anchors to whatever this rule set actually does. Press <b>new rule set</b>: the edge moves, '+
+    'the anchor follows, and &pi;&nbsp;=&nbsp;'+P.PI_SPAN+' is still the edge.';
+}
+
+/* ---------- popout + capture ---------------------------------------------
+   The pattern the figure will generalise: the popout is the SAME page in solo
+   mode, and the two windows agree through a BroadcastChannel. Whichever one
+   moves pi tells the other. That is the same single-source-of-truth refactor
+   panel sync needs, which is why the two jobs belong in one commit. */
+const bus = ('BroadcastChannel' in window) ? new BroadcastChannel('panelC') : null;
+if(bus) bus.onmessage=e=>{ if(e.data&&e.data.t==='pi' && e.data.pi!==pi) setPi(e.data.pi, true); };
+
+/* A second, belt-and-braces channel: a DIRECT postMessage link between the
+   window that opened the popout and the popout itself.
+
+   BroadcastChannel is origin-scoped, and Chromium happens to give two
+   file:// pages the same origin -- verified here, syncing both ways. Firefox
+   does not: it gives every file:// document an opaque origin, so the channel
+   silently carries nothing. This figure is opened as a local file, and the
+   screenshots it is being built from are Firefox, so relying on the channel
+   alone would ship a popout that works on the machine it was tested on and
+   nowhere else.
+
+   window.opener and the handle returned by window.open are direct references
+   and do not care about origin opacity, so this path works in both. Messages
+   are tagged and ignored unless they carry the expected shape. */
+const kids=[];
+function relay(msg){
+  if(bus) bus.postMessage(msg);
+  try{ if(window.opener && !window.opener.closed) window.opener.postMessage(msg,'*'); }catch(_){}
+  for(let i=kids.length-1;i>=0;i--){
+    try{ kids[i].closed ? kids.splice(i,1) : kids[i].postMessage(msg,'*'); }catch(_){ kids.splice(i,1); }
+  }
+}
+window.addEventListener('message', e=>{
+  const d=e.data;
+  if(d && d.t==='pi' && typeof d.pi==='number' && d.pi!==pi) setPi(d.pi, true);
+});
+
+const solo=new URLSearchParams(location.search).get('solo')==='1';
+if(solo) document.documentElement.setAttribute('data-solo','1');
+
+document.getElementById('pop').addEventListener('click',()=>{
+  const u=location.origin+location.pathname+'?solo=1';
+  const kid=window.open(u,'panelC_solo','width=1600,height=1000');
+  if(kid){ kids.push(kid); setTimeout(()=>{ try{ kid.postMessage({t:'pi',pi},'*'); }catch(_){} }, 600); }
+});
+document.getElementById('png').addEventListener('click',()=>{
+  // Capture at the canvas's own backing-store resolution, which is already
+  // devicePixelRatio-scaled -- pop out first and go full screen for the
+  // largest possible grab.
+  ca.toBlob(b=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);
+    a.download='panelC_pi'+pi+'_lam'+LAM.toFixed(3)+'.png';
+    a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  },'image/png');
+});
+document.getElementById('theme').addEventListener('click',function(){
+  const cur=document.documentElement.getAttribute('data-theme');
+  const nx = cur==='light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme',nx);
+  this.textContent = nx==='light' ? 'Dark' : 'Light';
+  dirty=true;
+});
+document.getElementById('pi').addEventListener('input',e=>setPi(+e.target.value));
+document.getElementById('cRun').addEventListener('click',function(){
+  running=!running; this.setAttribute('aria-pressed',running);
+  this.classList.toggle('on',running);
+});
+document.getElementById('cRestart').addEventListener('click',seedWorld);
+document.getElementById('cReroll').addEventListener('click',()=>{
+  build(R.K, null, !document.getElementById('cRagged').classList.contains('on'));
+});
+document.getElementById('cRagged').addEventListener('click',function(){
+  this.classList.toggle('on');
+  this.setAttribute('aria-pressed', this.classList.contains('on'));
+});
+document.getElementById('fill').addEventListener('change',e=>{ fillMode=e.target.value; seedWorld(); });
+document.getElementById('kstates').addEventListener('change',e=>{ build(+e.target.value, R.seed, false); });
+document.getElementById('speed').addEventListener('change',e=>{ P.ROWS_PF=+e.target.value; });
+window.addEventListener('keydown',ev=>{
+  if(ev.key!=='ArrowLeft'&&ev.key!=='ArrowRight') return;
+  if(ev.target.tagName==='SELECT') return;
+  ev.preventDefault();
+  setPi(pi+(ev.key==='ArrowRight'?1:-1)*(ev.shiftKey?10:2));
+});
+window.addEventListener('resize',fit);
+
+/* ---------- loop --------------------------------------------------------- */
+fit(); build(P.K, P.RULE_SEED, false);
+(function loop(){
+  if(running){ for(let i=0;i<P.ROWS_PF;i++) advance(); }
+  paint();
+  if(dirty){ dirty=false; drawAxis(); }
+  requestAnimationFrame(loop);
+})();
+
+/* ---------- the integration surface --------------------------------------
+   Everything the figure needs to drive this panel, and everything a reviewer
+   needs to check it, in one object -- mirroring window.FIG. */
+window.PANELC={
+  P,
+  setPi, pi:()=>pi,
+  lambda:()=>LAM, lambdaC:()=>LC,
+  survival:()=>SURV, regimeOf,
+  lamOf, lamSigmaMatched,
+  setSigmaA:(s)=>{ sigmaA=s; dirty=true; return sigmaA; },
+  reroll:(seed,clean)=>{ build(R.K, seed==null?null:seed, clean!==false); return R.seed; },
+  curve:()=>CURVE, rejected:()=>REJECTED,
+  rules:()=>({K:R.K, total:R.N, inUse:RULES_ON, seed:R.seed}),
+  palette:()=>COLS.slice(),
+  restart:seedWorld,
+  /* The sweep as a table: what lambda each pi maps to and what the automaton
+     does there. This is the panel's own equivalent of FIG.ladders(). */
+  sweep:(stepSize)=>{
+    const out=[], keep=pi;
+    for(let v=100;v>=0;v-=(stepSize||10)){
+      const l=lamOf(v), s=survival(R,bake(R,l).tab);
+      out.push({pi:v, lambda:+l.toFixed(3), survival:+s.survival.toFixed(2),
+                meanLife:+s.meanLife.toFixed(1), regime:regimeOf(s.survival)});
+    }
+    setPi(keep,true);
+    if(console.table) console.table(out);
+    return out;
+  },
+  /* R7: no printed number comes from one draw. */
+  assertEnsemble:()=>{
+    const ok = SURV && SURV.trials>=12 && SURV.seed===P.PR_SEED;
+    if(!ok) console.error('PANELC.assertEnsemble FAILED', SURV);
+    return ok;
+  },
+  /* The calibration actually holds: pi = PI_SPAN lands on the measured edge. */
+  assertAnchor:()=>{
+    const d=Math.abs(lamOf(P.PI_SPAN)-LC);
+    const ok=d<1e-9;
+    if(!ok) console.error('PANELC.assertAnchor FAILED: off by', d);
+    return ok;
+  }
+};
+console.log('%cPANELC ready','color:#ff3d7f;font-weight:700',
+            'λᴄ =', LC===null?'none':LC.toFixed(4),
+            '| anchor', PANELC.assertAnchor(), '| ensemble', PANELC.assertEnsemble());
+})();
+</script>
+</body>
+</html>

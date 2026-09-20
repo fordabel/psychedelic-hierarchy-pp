@@ -1,0 +1,948 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel C prototype (2-D) — criticality with no brain in it</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0f1116; --panel:#161922; --edge:#252a36; --fg:#e8ebf2; --dim:#98a0b0;
+    --faint:#69707e; --shadow:rgba(0,0,0,.45); --focus:#f0a06e;
+    --dead:#07080c;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      color-scheme:light;
+      --bg:#f6f7f9; --panel:#fff; --edge:#dfe3ea; --fg:#171b23; --dim:#5c6472;
+      --faint:#8a92a1; --shadow:rgba(20,25,35,.10); --focus:#b8451a; --dead:#0b0c11;
+    }
+  }
+  :root[data-theme="light"]{
+    color-scheme:light;
+    --bg:#f6f7f9; --panel:#fff; --edge:#dfe3ea; --fg:#171b23; --dim:#5c6472;
+    --faint:#8a92a1; --shadow:rgba(20,25,35,.10); --focus:#b8451a; --dead:#0b0c11;
+  }
+  *{box-sizing:border-box}
+  :where(button,select,input):focus-visible{outline:2px solid var(--focus); outline-offset:2px; border-radius:6px}
+  html,body{height:100%}
+  body{margin:0; background:var(--bg); color:var(--fg); overflow:hidden;
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  #app{display:flex; flex-direction:column; height:100vh; padding:12px 16px 10px; gap:10px}
+  header{display:flex; align-items:baseline; gap:12px; flex:0 0 auto; flex-wrap:wrap}
+  header h1{font-size:15px; font-weight:600; margin:0; letter-spacing:.2px}
+  header .sub{font-size:12px; color:var(--dim)}
+  header .spacer{flex:1}
+  .ghost{background:transparent; color:var(--dim); border:1px solid var(--edge);
+    border-radius:7px; padding:5px 11px; font:inherit; font-size:12.5px; cursor:pointer}
+  .ghost:hover{color:var(--fg); border-color:var(--faint)}
+  .ghost[aria-pressed="true"]{background:var(--fg); color:var(--bg); border-color:var(--fg)}
+
+  .panel{background:var(--panel); border:1px solid var(--edge); border-radius:12px;
+    box-shadow:0 1px 3px var(--shadow); display:flex; flex-direction:column; min-height:0; flex:1 1 auto}
+  .phead{display:flex; align-items:center; gap:9px; padding:9px 14px 8px;
+    border-bottom:1px solid var(--edge); flex:0 0 auto; flex-wrap:wrap}
+  .ptag{font-size:11px; font-weight:700; letter-spacing:.10em; color:var(--faint)}
+  .ptitle{font-size:13px; font-weight:600}
+  .phead .spacer{flex:1}
+  .hint{font-size:11.5px; color:var(--faint)}
+  .chips{display:flex; gap:6px; flex-wrap:wrap}
+  .chip{background:transparent; color:var(--dim); border:1px solid var(--edge);
+    border-radius:999px; padding:3px 10px; font:inherit; font-size:11.5px; cursor:pointer}
+  .chip.on{background:var(--fg); color:var(--bg); border-color:var(--fg)}
+  select.chip{border-radius:7px; padding:4px 8px}
+
+  .cvwrap{position:relative; flex:1 1 auto; min-height:0; margin:0}
+  #ca{position:absolute; inset:0; width:100%; height:100%; display:block;
+      background:var(--dead); border-radius:0 0 11px 11px}
+  .axwrap{flex:0 0 auto; padding:8px 14px 2px}
+  #ax{display:block; width:100%; height:126px}
+  .foot{flex:0 0 auto; padding:6px 14px 11px; display:flex; gap:14px; align-items:center; flex-wrap:wrap}
+  .foot .row{display:flex; align-items:center; gap:8px}
+  .foot label{font-size:11.5px; color:var(--dim)}
+  input[type=range]{width:220px; accent-color:var(--focus)}
+  .val{font-variant-numeric:tabular-nums; font-size:12px; color:var(--fg); min-width:2.6em}
+  .note{font-size:11px; color:var(--faint); padding:0 14px 10px; line-height:1.5}
+  .note b{color:var(--dim); font-weight:600}
+  :root[data-solo="1"] header, :root[data-solo="1"] .note{display:none}
+  :root[data-solo="1"] #app{padding:0}
+  :root[data-solo="1"] .panel{border:0; border-radius:0; box-shadow:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Panel C prototype &mdash; 2-D <span class="sub">&mdash; the same transition on a sheet</span></h1>
+    <span class="spacer"></span>
+    <button class="ghost" id="pop">Pop out &#8599;</button>
+    <button class="ghost" id="png">Save PNG</button>
+    <button class="ghost" id="theme">Light</button>
+  </header>
+
+  <section class="panel">
+    <div class="phead">
+      <span class="ptag">PANEL C</span>
+      <span class="ptitle">Criticality without anatomy &mdash; a 2-D automaton on the same knob</span>
+      <span class="spacer"></span>
+      <span class="hint" id="stat"></span>
+    </div>
+
+    <div class="cvwrap"><canvas id="ca"></canvas></div>
+    <div class="axwrap"><canvas id="ax"></canvas></div>
+
+    <div class="foot">
+      <div class="row">
+        <label for="pi">prior precision &pi;</label>
+        <input type="range" id="pi" min="0" max="100" value="66" step="1">
+        <span class="val" id="piv">66</span>
+      </div>
+      <div class="chips">
+        <button class="chip on" id="cRun" aria-pressed="true">running</button>
+        <button class="chip" id="cRestart">restart world</button>
+        <button class="chip" id="cReroll">new rule set</button>
+        <button class="chip" id="cRagged" aria-pressed="false">allow ragged</button>
+        <select class="chip" id="fill">
+          <option value="clump">fill: blob</option>
+          <option value="rand" selected>fill: random</option>
+          <option value="dot">fill: one dot</option>
+        </select>
+        <select class="chip" id="kstates">
+          <option value="4">4 states</option>
+          <option value="6" selected>6 states</option>
+          <option value="8">8 states</option>
+        </select>
+        <select class="chip" id="speed">
+          <option value="1" selected>1 gen/frame</option>
+          <option value="2">2 gen/frame</option>
+          <option value="4">4 gen/frame</option>
+        </select>
+      </div>
+    </div>
+    <div class="note" id="note"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+/* ========================================================================
+ *  PANEL C PROTOTYPE
+ *
+ *  What this panel argues: the regime change the figure shows on cortical
+ *  wiring is generic to this KIND of system. There is no parcellation here,
+ *  no receptor map, no T1w/T2w ordering -- nothing that could make the
+ *  transition an artefact of the anatomy. One scalar knob still sweeps it
+ *  from dies-out to holds to spreads.
+ *
+ *  This is the 2-D variant. It is an OUTER-TOTALISTIC 2-D automaton after
+ *  Langton's lambda -- the same knob, one dimension up, on a sheet rather
+ *  than a line. The 1-D build (panelC-proto.html) is kept alongside it, and
+ *  the two are a genuine trade, not a refinement:
+ *
+ *    2-D GAINS   a sheet, which is what cortex is. Eight neighbours rather
+ *                than two, so the branching is less of an abstraction.
+ *                Transitions are smoother and clean rule sets far commoner
+ *                (81% of seeds pass, against 21% in 1-D).
+ *
+ *    2-D LOSES   the time axis. The 1-D raster puts time on the vertical and
+ *                shows the whole history in one still frame, which is what
+ *                makes dies/holds/spreads legible in a screenshot and what
+ *                matches Panel A's freeze-frame, where a row IS a hop. A
+ *                sheet has no spare axis; it shows only now.
+ *
+ *                It also moves closer to Panel B, which already argues
+ *                percolation in space. R2 gives one idea one home, and the
+ *                1-D panel's spacetime framing is what kept C and B
+ *                arguing different things.
+ *
+ *  THREE THINGS TO KNOW BEFORE READING THE CODE
+ *
+ *  1. sigma is NOT the order parameter here, and cannot be. In a 1-D
+ *     automaton with a radius-1 neighbourhood the damage cone widens by at
+ *     most one cell per side per step, so the number of damaged cells grows
+ *     LINEARLY and d(t+1)/d(t) -> 1 by geometry, not by dynamics. Measured,
+ *     it pins at ~1.14 in every chaotic rule set, which is a picture of the
+ *     light cone and nothing else. Panel A's sigma is meaningful because its
+ *     branching runs on a network with ~3.67 targets per node and no such
+ *     bound. The two systems do not share a statistic.
+ *
+ *  2. They share an EVENT instead. Panel B asks whether a patch spans a
+ *     level -- percolation in space. Panel C asks whether a perturbation
+ *     still exists later -- percolation in spacetime. Same question, one
+ *     axis apart, and both answer in the vocabulary the freeze-frame already
+ *     uses: dies out / holds / spreads.
+ *
+ *  3. lambda_c is MEASURED, never assumed. Eck warns the edge is not at a
+ *     fixed lambda; swept here across eight rule seeds it ran from 0.13 to
+ *     0.58 (sd ~0.15). So the panel measures its own critical point at boot
+ *     and anchors the mapping to that. Re-rolling the rules moves the edge
+ *     and the anchor follows it -- which is the honest demonstration that
+ *     the claim was never about a magic number.
+ * ===================================================================== */
+
+const P = {
+  /* --- automaton ----------------------------------------------------- */
+  K:        6,           // states; 0 is dead. Rules = K * (8(K-1)+1) = 246.
+  /* Rule seed, chosen by the same four criteria as the 1-D build, re-run on
+     260 -> 90 seeds here: monotone fill, no short-period attractor above
+     lambda_c inside the band, rising block entropy, resolvable width.
+
+     81% of 2-D seeds pass, against 21% in 1-D. That difference is real and
+     worth knowing: a Moore neighbourhood is better connected than a radius-1
+     line, so 2-D transitions are smoother and the pathological frozen
+     attractors that plagued the 1-D search are rare. The cost is the other
+     side of the same coin -- see LAM_ABOVE.
+
+     This one: fill rises 0.00 -> 0.78 with 0.05 total backward movement,
+     block entropy 0.00 -> 0.84, frozen only at lambda <= 0.06 where the
+     world is legitimately dead. */
+  RULE_SEED:285084,
+  CLEAN_TRIES:12,
+  CURVE_N:  24,          // grid points in the fill curve (2-D probes cost more)
+  CELL:     4,           // px per cell
+  ROWS_PF:  1,           // generations advanced per animation frame
+
+  /* --- perturbation injection ----------------------------------------
+     A small blob dropped into the running world every INJ_EVERY generations.
+     Same reason as 1-D: without it the ordered phase is uniformly dead, not
+     sparse-and-structured, and the top of the slider is an empty panel. In
+     2-D the blob is a disc rather than a run of cells. */
+  INJ_EVERY: 7,
+  INJ_R:     2,          // blob radius in cells
+
+  /* --- the probe ------------------------------------------------------
+     Cone fill; see probe(). PR_W > 2*PR_T so the cone cannot wrap.
+     The _FAST pair is used for the 24-point curve at boot, where a full
+     -resolution probe at every lambda would cost seconds. */
+  PR_W:     120,
+  PR_T:      40,
+  PR_TRIALS: 20,
+  PR_W_FAST: 80,
+  PR_T_FAST: 26,
+  PR_SEED:  20260919,
+  PR_FILL:  0.5,
+  PR_CROSS: 0.50,        // fraction of saturation fill that defines lambda_c
+
+  /* --- calibration: pi -> lambda -------------------------------------
+     Anchored exactly as in 1-D. Three points, piecewise linear:
+
+        pi = 100        lambda_c - LAM_BELOW    blobs die on arrival
+        pi = PI_SPAN    lambda_c                the measured edge
+        pi = 0          lambda_c + LAM_ABOVE    visibly disordered
+
+     PI_SPAN is Panel B's percolation point, so the two panels place the SAME
+     EVENT at the SAME pi.
+
+     LAM_ABOVE is TIGHTER here than in 1-D (0.20 against 0.22) against a much
+     narrower usable window: 2-D reaches its chaotic regime sooner and harder,
+     because every cell has eight neighbours instead of two. The far end of
+     the axis is drawn and never entered, and the regime word "fills" is
+     reserved for it.                                                      */
+  PI_SPAN:  66,
+  LAM_BELOW:0.34,
+  LAM_ABOVE:0.20,
+  SHAPE_LO: 1.00,
+  SHAPE_HI: 1.00,
+
+  /* --- colour ---------------------------------------------------------
+     Vibrant and deliberately NOT the Mesulam four (#3a78c0 #17958c #9b76d8
+     #e2761a), which mean cortical type everywhere else in the figure. R3
+     makes colour identity load-bearing: a cell here is not a parcel. */
+  PAL_SEED: 5150,
+  PAL_SAT:  92,
+  PAL_LIT:  62
+};
+
+/* ---------- rng ---------------------------------------------------------- */
+function mulberry32(a){
+  return function(){
+    a|=0; a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+
+/* ---------- rule set: OUTER-TOTALISTIC ----------------------------------
+   A 2-D Moore neighbourhood over K states has K^9 configurations -- 387
+   million at K=6. Unusable, and lambda over it would be meaningless because
+   almost every rule would be unreachable in any finite run.
+
+   The standard generalisation, and what Life is, is OUTER-TOTALISTIC: the new
+   state depends on the centre's own state and the SUM of its eight
+   neighbours, not on their arrangement. Rule count becomes
+
+       K * (8(K-1) + 1)        246 at K=6, 100 at K=4, 456 at K=8
+
+   and lambda recovers its meaning as the fraction of rules leading to a
+   living state. Isotropy is automatic: a sum does not know which neighbour
+   contributed what.
+
+   Activation ordering is identical to the 1-D build: every rule but the
+   quiescent one gets a random living output and a random place in an order,
+   lambda is the fraction switched on, and raising it only ever ADDS rules --
+   so the sweep is nested and nothing re-rolls under the slider. */
+function makeRules(K, seed){
+  const rnd=mulberry32(seed);
+  const NS=8*(K-1)+1, N=K*NS;
+  const out=new Uint8Array(N);
+  for(let i=0;i<N;i++) out[i]=1+Math.floor(rnd()*(K-1));
+  const DEAD=0;                                  // centre dead, neighbours dead
+  out[DEAD]=0;                                   // quiescence is absorbing
+  const order=[];
+  for(let i=0;i<N;i++) if(i!==DEAD) order.push(i);
+  for(let i=order.length-1;i>0;i--){
+    const j=Math.floor(rnd()*(i+1)), t=order[i]; order[i]=order[j]; order[j]=t;
+  }
+  const rank=new Int32Array(N).fill(-1);
+  order.forEach((ri,k)=>{ rank[ri]=k; });
+  return {K, NS, N, out, rank, DEAD, nAct:order.length, seed};
+}
+function bake(R, lam){
+  const on=Math.round(Math.max(0,Math.min(1,lam))*R.nAct);
+  const tab=new Uint8Array(R.N);
+  for(let i=0;i<R.N;i++){ const rk=R.rank[i]; tab[i]=(rk>=0&&rk<on)?R.out[i]:0; }
+  tab[R.DEAD]=0;
+  return {tab, rulesOn:on+1, lambda:on/R.nAct};
+}
+/* One synchronous update of a periodic W x H grid. */
+function step(R, tab, src, dst, W, H){
+  const NS=R.NS;
+  for(let y=0;y<H;y++){
+    const yu=(y===0?H-1:y-1)*W, yd=(y===H-1?0:y+1)*W, yc=y*W;
+    for(let x=0;x<W;x++){
+      const xl=(x===0?W-1:x-1), xr=(x===W-1?0:x+1);
+      const sum = src[yu+xl]+src[yu+x]+src[yu+xr]
+                + src[yc+xl]          +src[yc+xr]
+                + src[yd+xl]+src[yd+x]+src[yd+xr];
+      dst[yc+x]=tab[src[yc+x]*NS + sum];
+    }
+  }
+}
+
+/* ---------- the order parameter: CONE FILL -------------------------------
+   Two copies of one world differing in a single cell, as in 1-D. But the
+   1-D measure does not survive the move up a dimension:
+
+     - sigma is still unusable, and for the same reason. The damage cone is
+       still light-cone bounded, so the ratio still tends to 1.
+     - SPREADING VELOCITY, which is what the 1-D panel uses, now saturates
+       almost at once: measured here it reaches 1.0 -- the full Moore
+       cone speed -- by lambda 0.45, while the pattern is still sparse. In
+       2-D the damage races to the cone's edge and then fills it slowly, so
+       the radius stops discriminating long before the dynamics do.
+
+   What does discriminate is how much of the cone the damage OCCUPIES:
+
+       fill = |damaged cells| / (2T+1)^2
+
+     dies out   0
+     edge       small -- damage is a thin fractal threaded through the cone
+     chaotic    large -- damage fills the cone
+
+   Per R7 this is a mean over PR_TRIALS trials from a stated seed. */
+function probe(R, tab, o){
+  o=Object.assign({W:P.PR_W, H:P.PR_W, T:P.PR_T, trials:P.PR_TRIALS,
+                   seed:P.PR_SEED, fill:P.PR_FILL}, o||{});
+  const rnd=mulberry32(o.seed), W=o.W, H=o.H, N=W*H, T=o.T;
+  let a=new Uint8Array(N), b=new Uint8Array(N), a2=new Uint8Array(N), b2=new Uint8Array(N);
+  let fs=0, surv=0, rad=0;
+  const cone=(2*T+1)*(2*T+1);
+  for(let t=0;t<o.trials;t++){
+    for(let i=0;i<N;i++){ a[i]= rnd()<o.fill ? 1+Math.floor(rnd()*(R.K-1)) : 0; b[i]=a[i]; }
+    const cx=W>>1, cy=H>>1, p0=cy*W+cx;
+    let nv=1+Math.floor(rnd()*(R.K-1)); if(nv===b[p0]) nv = nv===R.K-1 ? 1 : nv+1;
+    b[p0]=nv;
+    let alive=true, dmg=0, mr=0;
+    for(let s2=0;s2<T&&alive;s2++){
+      step(R,tab,a,a2,W,H); step(R,tab,b,b2,W,H);
+      let d=0;
+      for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+        const i=y*W+x;
+        if(a2[i]!==b2[i]){ d++;
+          const q=Math.max(Math.abs(x-cx),Math.abs(y-cy)); if(q>mr) mr=q; }
+      }
+      let tmp; tmp=a;a=a2;a2=tmp; tmp=b;b=b2;b2=tmp;
+      if(d===0) alive=false; else dmg=d;
+    }
+    if(alive){ surv++; fs += dmg/cone; rad += mr; }
+  }
+  return {v:fs/o.trials, survival:surv/o.trials, reach: surv?rad/surv:0,
+          trials:o.trials, T:o.T, seed:o.seed};
+}
+
+/* Does the bulk freeze? Same question as 1-D, same reason for asking. */
+function periodAt(R, tab, o){
+  o=Object.assign({W:64, H:64, T:150, seed:5150, maxP:20}, o||{});
+  const rnd=mulberry32(o.seed), W=o.W, H=o.H, N=W*H;
+  let a=new Uint8Array(N), b=new Uint8Array(N);
+  for(let i=0;i<N;i++) a[i]= rnd()<0.5 ? 1+Math.floor(rnd()*(R.K-1)) : 0;
+  const hist=[];
+  for(let t=0;t<o.T;t++){
+    step(R,tab,a,b,W,H); const tmp=a;a=b;b=tmp;
+    if(t>=o.T-(o.maxP+2)) hist.push(Uint8Array.from(a));
+  }
+  const last=hist[hist.length-1];
+  for(let q=1;q<=o.maxP;q++){
+    const c=hist[hist.length-1-q]; if(!c) break;
+    let same=true;
+    for(let i=0;i<N;i++) if(c[i]!==last[i]){ same=false; break; }
+    if(same) return q;
+  }
+  return 0;
+}
+
+/* The whole fill curve in one pass, with lambda_c read off it where fill
+   crosses PR_CROSS of its saturation value, and the freeze flags alongside.
+   Drawn, for the same reason as in 1-D: a critical point asserted as a bare
+   number asks to be taken on faith. */
+function velocityCurve(R){
+  const N=P.CURVE_N, ys=new Float64Array(N+1), per=new Int16Array(N+1);
+  for(let i=0;i<=N;i++){
+    const tab=bake(R,i/N).tab;
+    ys[i]=probe(R,tab,{trials:Math.max(8,P.PR_TRIALS>>1),
+                       W:P.PR_W_FAST, H:P.PR_W_FAST, T:P.PR_T_FAST}).v;
+    per[i]=periodAt(R,tab);
+  }
+  const vsat=Math.max(...ys), thr=vsat*P.PR_CROSS;
+  let lc=null;
+  for(let i=1;i<=N;i++){
+    if(ys[i]>=thr && ys[i-1]<thr){
+      const t=(thr-ys[i-1])/((ys[i]-ys[i-1])||1);
+      lc=((i-1)+t)/N; break;
+    }
+  }
+  let onset=null;
+  for(let i=1;i<=N;i++) if(onset===null && ys[i]>=0.02*Math.max(vsat,1e-9)) onset=i/N;
+  let drop=0;
+  for(let i=1;i<=N;i++){ const d=ys[i-1]-ys[i]; if(d>0) drop+=d; }
+  let frozen=0;
+  if(lc!==null){
+    const z=Math.min(1, lc+P.LAM_ABOVE);
+    for(let i=0;i<=N;i++){ const l=i/N; if(l>lc && l<=z && per[i]>0 && per[i]<=4) frozen++; }
+    const hiIdx=Math.min(N, Math.round(z*N));
+    if(per[hiIdx]>0 && per[hiIdx]<=4) frozen++;
+  }
+  return {ys, per, lc, onset, vsat:+vsat.toFixed(3), drop:+drop.toFixed(3), frozen, N};
+}
+/* ---------- pi -> lambda, anchored --------------------------------------- */
+function lamLo(){ return Math.max(0.02, LC - P.LAM_BELOW); }
+function lamHi(){ return Math.min(0.98, LC + P.LAM_ABOVE); }
+function lamOf(pi){
+  if(LC===null) return 0;
+  const lo=lamLo(), hi=lamHi();
+  if(pi>=P.PI_SPAN){                            // 100 .. PI_SPAN  ->  lo .. LC
+    const u=(100-pi)/(100-P.PI_SPAN);
+    return lo+(LC-lo)*Math.pow(u, P.SHAPE_LO);
+  }
+  const u=(P.PI_SPAN-pi)/P.PI_SPAN;             // PI_SPAN .. 0    ->  LC .. hi
+  return LC+(hi-LC)*Math.pow(u, P.SHAPE_HI);
+}
+/* The ghost mark. Panel A's sigma tops out at 0.95 and never reaches 1, so
+   sigma-matching alone would leave this panel short of its own edge forever.
+   The anchored mark above is the live state; this is where sigma-matching
+   WOULD put it, drawn as a ghost so a disagreement between the two is
+   visible instead of tidied away -- the same discipline R6 applies to level
+   inversions. In the prototype sigmaA is a stand-in; in the figure it reads
+   FIG.sigma().sigma. */
+function lamSigmaMatched(sigmaA){
+  if(LC===null) return null;
+  const lo=lamLo(), hi=lamHi();
+  return Math.max(lo, Math.min(hi, lo+(hi-lo)*Math.max(0,Math.min(1,sigmaA))));
+}
+/* One vocabulary, shared with the figure's freeze-frame. Keyed to v as a
+   FRACTION of its saturation value, so the words mean the same thing whatever
+   rule set is loaded -- one whose chaotic phase tops out lower does not get
+   promoted a regime for free. */
+function regimeOf(v, vsat){
+  const f = (vsat||0.9)>0 ? v/(vsat||0.9) : 0;
+  if(f<0.06) return 'dies out';
+  if(f<0.45) return 'holds';
+  if(f<0.92) return 'spreads';
+  return 'fills';        // reserved for the band the slider never enters
+}
+
+/* ---------- palette ------------------------------------------------------ */
+let COLS=[];
+function makePalette(K, seed){
+  const rnd=mulberry32(seed);
+  const out=['#000000'];                         // state 0 = dead, painted as background
+  let h=rnd()*360;
+  for(let i=1;i<K;i++){
+    h=(h+137.508+ (rnd()-0.5)*18) % 360;         // golden angle, lightly jittered
+    const s=P.PAL_SAT-rnd()*14, l=P.PAL_LIT+(rnd()-0.5)*16;
+    out.push(hsl2hex(h,s,l));
+  }
+  return out;
+}
+function hsl2hex(h,s,l){
+  s/=100; l/=100;
+  const k=n=>(n+h/30)%12, a=s*Math.min(l,1-l);
+  const f=n=>l-a*Math.max(-1,Math.min(Math.min(k(n)-3,9-k(n)),1));
+  const g=v=>Math.round(255*v).toString(16).padStart(2,'0');
+  return '#'+g(f(0))+g(f(8))+g(f(4));
+}
+
+/* ======================================================================== *
+ *  STATE
+ * ===================================================================== */
+let R=null, LC=null, TAB=null, RULES_ON=0, LAM=0, SURV=null, CURVE=null, PERIOD=0;
+let world=null, next=null, GW=0, GH=0;
+let off=null, octx=null, img=null;
+let running=true, pi=66, sigmaA=0.80, REJECTED=0;            // sigmaA: stand-in for FIG.sigma()
+let fillMode='rand', dirty=true;
+
+const ca=document.getElementById('ca'), cctx=ca.getContext('2d');
+const ax=document.getElementById('ax'), actx=ax.getContext('2d');
+const statEl=document.getElementById('stat'), noteEl=document.getElementById('note');
+
+function cssv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+/* ---------- world -------------------------------------------------------- */
+function seedWorld(){
+  // fit() builds the buffers before build() has made a rule set.
+  if(!world || !R) return;
+  world.fill(0);
+  const rnd=mulberry32((Date.now()&0xffff)^R.seed);
+  if(fillMode==='dot'){ blob(world, GW>>1, GH>>1, P.INJ_R, rnd); }
+  else if(fillMode==='clump'){ blob(world, GW>>1, GH>>1, Math.max(3, GW>>4), rnd); }
+  else {
+    for(let i=0;i<GW*GH;i++) world[i]= rnd()<0.5 ? 1+Math.floor(rnd()*(R.K-1)) : 0;
+  }
+}
+/* A disc of live cells -- the 2-D form of the 1-D clump. */
+function blob(g, cx, cy, r, rnd){
+  for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){
+    if(dx*dx+dy*dy>r*r) continue;
+    const x=((cx+dx)%GW+GW)%GW, y=((cy+dy)%GH+GH)%GH;
+    g[y*GW+x]=1+Math.floor(rnd()*(R.K-1));
+  }
+}
+
+function fit(){
+  const r=ca.parentElement.getBoundingClientRect();
+  const dpr=Math.min(3, window.devicePixelRatio||1);
+  ca.width=Math.max(1,Math.round(r.width*dpr));
+  ca.height=Math.max(1,Math.round(r.height*dpr));
+  const nW=Math.max(24, Math.floor(r.width/P.CELL));
+  const nH=Math.max(24, Math.floor(r.height/P.CELL));
+  if(nW!==GW || nH!==GH){
+    GW=nW; GH=nH;
+    world=new Uint8Array(GW*GH); next=new Uint8Array(GW*GH);
+    off=document.createElement('canvas'); off.width=GW; off.height=GH;
+    octx=off.getContext('2d');
+    octx.imageSmoothingEnabled=false;
+    img=octx.createImageData(GW,GH);
+    seedWorld();
+  }
+  const ar=ax.getBoundingClientRect();
+  ax.width=Math.max(1,Math.round(ar.width*dpr));
+  ax.height=Math.max(1,Math.round(ar.height*dpr));
+  dirty=true;
+}
+
+let injClock=0, injRnd=mulberry32(4242);
+function advance(){
+  /* Drop a blob every INJ_EVERY generations -- Panel A's "release a
+     perturbation" idiom, running. Without it the ordered phase of these rule
+     sets is uniformly dead and the top of the slider is an empty panel. */
+  if(P.INJ_EVERY>0 && (injClock++ % P.INJ_EVERY)===0 && GW>8){
+    blob(world, Math.floor(injRnd()*GW), Math.floor(injRnd()*GH), P.INJ_R, injRnd);
+  }
+  step(R,TAB,world,next,GW,GH);
+  const t=world; world=next; next=t;
+}
+
+/* The whole grid, every frame. Unlike the 1-D raster this shows ONE INSTANT:
+   the 2-D sheet has no spare axis to put time on, which is the real cost of
+   this variant and the reason the 1-D build is kept alongside it. */
+function paint(){
+  const d=img.data;
+  for(let i=0;i<GW*GH;i++){
+    const v=world[i], n=i*4;
+    if(v===0){ d[n]=0; d[n+1]=0; d[n+2]=0; d[n+3]=0; }
+    else{
+      const c=COLS[v]||'#fff';
+      d[n]=parseInt(c.slice(1,3),16);
+      d[n+1]=parseInt(c.slice(3,5),16);
+      d[n+2]=parseInt(c.slice(5,7),16);
+      d[n+3]=255;
+    }
+  }
+  octx.putImageData(img,0,0);
+  cctx.setTransform(1,0,0,1,0,0);
+  cctx.fillStyle=cssv('--dead')||'#07080c';
+  cctx.fillRect(0,0,ca.width,ca.height);
+  cctx.imageSmoothingEnabled=false;
+  cctx.drawImage(off, 0,0,GW,GH, 0,0, ca.width, ca.height);
+}
+
+
+/* ---------- the lambda axis ---------------------------------------------- */
+function drawAxis(){
+  /* The lambda axis and, under it, the VELOCITY curve this panel's critical
+     point is READ OFF. Laid out so the curve gets a band with a usable aspect
+     -- at 17px against a 1900px axis it drew as a flat line and told the
+     reader nothing, which is the opposite of the point of drawing it. */
+  const dpr=Math.min(3, window.devicePixelRatio||1);
+  actx.setTransform(dpr,0,0,dpr,0,0);
+  const w=ax.width/dpr, h=ax.height/dpr;
+  actx.clearRect(0,0,w,h);
+  const fg=cssv('--fg'), dim=cssv('--dim'), faint=cssv('--faint'), edge=cssv('--edge');
+  const HOT='#ff3d7f', GHOST='#6fd3ff', WARN='#e0a33a';
+  const L=10, Rr=w-10, y=26, X=v=>L+(Rr-L)*v;
+  const cy0=46, cH=40;                        // velocity-curve band
+  actx.textBaseline='alphabetic';
+
+  if(LC===null){
+    actx.fillStyle=faint; actx.font='11px system-ui'; actx.textAlign='left';
+    actx.fillText('no critical point for this rule set — damage never survives', L, y);
+    return;
+  }
+  const lo=lamLo(), hi=lamHi();
+
+  /* --- the band the slider sweeps, and the stretch it never enters -------
+     Drawing the unreachable part rather than cropping the axis to the part
+     that moves: the figure's position is that this model approaches its
+     transition and stops short of running away, and a claim about where it
+     does NOT go needs somewhere to be visible. */
+  actx.fillStyle=edge;
+  actx.fillRect(X(hi), y-6, X(1)-X(hi), 12);
+  actx.fillStyle='rgba(255,61,127,0.18)';
+  actx.fillRect(X(lo), y-6, X(hi)-X(lo), 12);
+  actx.strokeStyle=edge; actx.lineWidth=1;
+  actx.beginPath(); actx.moveTo(L,y); actx.lineTo(Rr,y); actx.stroke();
+
+  actx.font='8.5px system-ui'; actx.fillStyle=faint;
+  actx.textAlign='center';
+  actx.fillText('swept by π', (X(lo)+X(hi))/2, y-11);
+  actx.fillText('not entered', (X(hi)+X(1))/2, y-11);
+
+  /* --- the spreading-velocity curve, full width ------------------------ */
+  if(CURVE){
+    actx.strokeStyle=edge; actx.lineWidth=1; actx.setLineDash([1,3]);
+    actx.beginPath();                              // the v crossing
+    const gy=cy0+cH*(1-P.PR_CROSS);
+    actx.moveTo(L, gy); actx.lineTo(Rr, gy); actx.stroke();
+    actx.setLineDash([]);
+    actx.beginPath();
+    for(let i=0;i<=CURVE.N;i++){
+      const nv=CURVE.vsat>0 ? CURVE.ys[i]/CURVE.vsat : 0;
+      const qx=X(i/CURVE.N), qy=cy0+cH*(1-Math.max(0,Math.min(1,nv)));
+      i ? actx.lineTo(qx,qy) : actx.moveTo(qx,qy);
+    }
+    actx.strokeStyle=HOT; actx.lineWidth=1.4; actx.stroke();
+
+    actx.font='8px system-ui'; actx.textAlign='right'; actx.fillStyle=faint;
+    actx.fillText(CURVE.vsat.toFixed(2), L-2, cy0+3);
+    actx.fillText('0', L-2, cy0+cH+3);
+  }
+
+  /* --- the three marks, each drawn through BOTH the axis and the curve --- */
+  const mark=(v,col,dash,lw)=>{
+    actx.save();
+    actx.setLineDash(dash); actx.strokeStyle=col; actx.lineWidth=lw;
+    actx.beginPath(); actx.moveTo(X(v), y-8); actx.lineTo(X(v), cy0+cH+4); actx.stroke();
+    actx.restore();
+  };
+  mark(LC, HOT, [], 1.4);                                    // measured edge
+  const gm=lamSigmaMatched(sigmaA);
+  if(gm!==null) mark(gm, GHOST, [2,3], 1.2);                 // sigma-matched ghost
+  actx.fillStyle=fg;                                          // live position
+  actx.beginPath();
+  actx.moveTo(X(LAM),y-1); actx.lineTo(X(LAM)-6,y-12); actx.lineTo(X(LAM)+6,y-12);
+  actx.closePath(); actx.fill();
+
+  actx.textAlign='left'; actx.fillStyle=faint; actx.font='8.5px system-ui';
+  actx.fillText('λ 0', L, y+15);
+  actx.textAlign='right'; actx.fillText('1', Rr, y+15);
+
+  /* --- one readout row. Labels live HERE, not on the curve, because at this
+     aspect any in-plot label lands on the line it is describing. --------- */
+  const ry=cy0+cH+18;
+  actx.textAlign='left';
+  actx.font='700 11.5px system-ui'; actx.fillStyle=dim;
+  const word = SURV?regimeOf(SURV.v, CURVE&&CURVE.vsat):'';
+  actx.fillText(word, L, ry);
+  const wx = L + actx.measureText(word).width + 12;
+
+  actx.font='9.5px system-ui'; actx.fillStyle=faint;
+  actx.fillText('damage cone fill vs λ, '+P.PR_TRIALS+' trials × '+P.PR_T+
+                ' steps, seed '+P.PR_SEED+'  ·  dotted = the crossing that defines λᴄ',
+                wx, ry);
+
+  const r2=ry+13;
+  actx.font='700 9px system-ui'; actx.fillStyle=HOT;
+  actx.fillText('λᴄ '+LC.toFixed(3)+' measured', L, r2);
+  let cx=L+actx.measureText('λᴄ '+LC.toFixed(3)+' measured').width+14;
+  actx.fillStyle=fg; actx.font='9px system-ui';
+  actx.fillText('λ '+LAM.toFixed(3)+' now', cx, r2);
+  cx+=actx.measureText('λ '+LAM.toFixed(3)+' now').width+14;
+  if(gm!==null){
+    actx.fillStyle=GHOST;
+    actx.fillText('σ-matched would be λ '+gm.toFixed(3), cx, r2);
+    cx+=actx.measureText('σ-matched would be λ '+gm.toFixed(3)).width+14;
+  }
+  actx.fillStyle=faint;
+  actx.fillText('fill '+(SURV?SURV.v.toFixed(2):'--')+'  ·  radius '+
+                (SURV?SURV.reach.toFixed(0):'--')+' cells', cx, r2);
+  cx+=actx.measureText('fill 0.00  ·  radius 000 cells').width+14;
+  /* A frozen bulk is named out loud. It is the failure this panel was
+     rebuilt around, so it must never be something only the eye catches. */
+  if(PERIOD>0 && PERIOD<=4){
+    actx.fillStyle=WARN;
+    actx.fillText('bulk frozen · period '+PERIOD, cx, r2);
+  }
+
+  /* Whether THIS rule set's transition is clean, said out loud. A ragged one
+     is not an error and is not hidden -- it is the Mitchell-Hraber-Crutchfield
+     result, and the curve above already shows it. */
+  let qual='';
+  if(CURVE){
+    qual = (CURVE.drop>0.10 ? 'ragged · curve falls back '
+                            : 'monotone · falls back ') + CURVE.drop.toFixed(2);
+    if(REJECTED) qual += '  · '+REJECTED+' ragged set'+(REJECTED>1?'s':'')+' skipped';
+  }
+  actx.textAlign='right';
+  actx.fillStyle = (CURVE && CURVE.drop>0.10) ? WARN : faint;
+  actx.font='9px system-ui';
+  actx.fillText(qual, Rr, r2);
+}
+
+/* ---------- recompute on pi change --------------------------------------- */
+let probeTimer=0;
+function setPi(v, quiet){
+  pi=Math.max(0,Math.min(100,Math.round(v)));
+  document.getElementById('pi').value=pi;
+  document.getElementById('piv').textContent=pi;
+  LAM=lamOf(pi);
+  const b=bake(R,LAM); TAB=b.tab; RULES_ON=b.rulesOn;
+  // The probe costs a few ms; debounce it so dragging stays at 60 fps.
+  clearTimeout(probeTimer);
+  probeTimer=setTimeout(()=>{
+    SURV=probe(R,TAB);
+    PERIOD=periodAt(R,TAB);          // is the bulk frozen at this lambda?
+    refresh();
+  }, 70);
+  refresh();
+  if(!quiet) relay({t:'pi', pi});
+}
+function refresh(){
+  statEl.textContent=R.K+' states · 3 neighbours · isotropic · '+
+    R.N.toLocaleString()+' rules · '+RULES_ON.toLocaleString()+' in use · λ '+LAM.toFixed(3);
+  dirty=true;
+}
+
+/* ---------- boot --------------------------------------------------------- */
+function build(K, seed, requireClean){
+  let tries=0, cand=null;
+  // On a reroll, keep drawing rule sets until one has a clean transition --
+  // ~45% do, so this lands in two or three tries. The count is reported, and
+  // that IS the teaching point: the edge is not guaranteed to be tidy.
+  do{
+    const sd = (seed==null) ? ((Math.random()*1e9)|0) : seed;
+    const Rn = makeRules(K, sd);
+    const cv = velocityCurve(Rn);
+    cand = {R:Rn, cv, sd};
+    tries++;
+    // A frozen cell anywhere in the reachable band disqualifies on its own:
+    // that is the static-stripe failure, and a clean curve elsewhere does not
+    // make up for it.
+    if(!requireClean || (cv.lc!==null && cv.frozen===0 && cv.drop<0.16 &&
+                         cv.lc>=0.20 && cv.lc<=0.80)) break;
+    seed=null;
+  } while(tries<P.CLEAN_TRIES);
+  R=cand.R; CURVE=cand.cv; LC=cand.cv.lc; REJECTED=tries-1;
+  COLS=makePalette(K, P.PAL_SEED^cand.sd);
+  setPi(pi, true);
+  SURV=probe(R,TAB); PERIOD=periodAt(R,TAB);
+  seedWorld();
+  noteEl.innerHTML=
+    '<b style="color:#e0a33a">Read this before using this variant.</b> It works, it is measured, and its '+
+    'transition is real \u2014 but it does <b>not</b> show an edge, and the edge is what this panel exists for. '+
+    'Random 2-D rules go <b>dead \u2192 noise</b> with no visible complex regime in between. Measured with no '+
+    'injection at all, \u03bb = 0.19, 0.31 and 0.50 are uniform speckle at different densities: no structures, '+
+    'no propagating fronts, no fractals.  '+
+    '<b>Why.</b> An outer-totalistic rule throws away <i>arrangement</i> \u2014 only the neighbour sum matters \u2014 '+
+    'and gliders need arrangement. Binary Life-like rules were tested too, the one 2-D family where class 4 is '+
+    'known to live: Conway\u2019s B3/S23 scores density 0.073 with churn 0.070, while random Life-like rules at '+
+    'every \u03bb score churn 0.00\u20130.03 \u2014 dead, or dense and static. Conway is a hand-found needle, not a '+
+    'typical sample, and \u03bb-sampling does not find its like.  '+
+    '<b>What this variant is still good for:</b> it is a sheet, which is what cortex is, and eight neighbours '+
+    'rather than two. Its transition from quiescent to active is genuine and anchored the same way. What it '+
+    'cannot do is carry the three-regime argument, and it sits closer to Panel B, which already argues '+
+    'percolation in space. <b>The 1-D build remains the panel.</b>';
+}
+
+/* ---------- popout + capture ---------------------------------------------
+   The pattern the figure will generalise: the popout is the SAME page in solo
+   mode, and the two windows agree through a BroadcastChannel. Whichever one
+   moves pi tells the other. That is the same single-source-of-truth refactor
+   panel sync needs, which is why the two jobs belong in one commit. */
+const bus = ('BroadcastChannel' in window) ? new BroadcastChannel('panelC') : null;
+if(bus) bus.onmessage=e=>{ if(e.data&&e.data.t==='pi' && e.data.pi!==pi) setPi(e.data.pi, true); };
+
+/* A second, belt-and-braces channel: a DIRECT postMessage link between the
+   window that opened the popout and the popout itself.
+
+   BroadcastChannel is origin-scoped, and Chromium happens to give two
+   file:// pages the same origin -- verified here, syncing both ways. Firefox
+   does not: it gives every file:// document an opaque origin, so the channel
+   silently carries nothing. This figure is opened as a local file, and the
+   screenshots it is being built from are Firefox, so relying on the channel
+   alone would ship a popout that works on the machine it was tested on and
+   nowhere else.
+
+   window.opener and the handle returned by window.open are direct references
+   and do not care about origin opacity, so this path works in both. Messages
+   are tagged and ignored unless they carry the expected shape. */
+const kids=[];
+function relay(msg){
+  if(bus) bus.postMessage(msg);
+  try{ if(window.opener && !window.opener.closed) window.opener.postMessage(msg,'*'); }catch(_){}
+  for(let i=kids.length-1;i>=0;i--){
+    try{ kids[i].closed ? kids.splice(i,1) : kids[i].postMessage(msg,'*'); }catch(_){ kids.splice(i,1); }
+  }
+}
+window.addEventListener('message', e=>{
+  const d=e.data;
+  if(d && d.t==='pi' && typeof d.pi==='number' && d.pi!==pi) setPi(d.pi, true);
+});
+
+const solo=new URLSearchParams(location.search).get('solo')==='1';
+if(solo) document.documentElement.setAttribute('data-solo','1');
+
+document.getElementById('pop').addEventListener('click',()=>{
+  const u=location.origin+location.pathname+'?solo=1';
+  const kid=window.open(u,'panelC_solo','width=1600,height=1000');
+  if(kid){ kids.push(kid); setTimeout(()=>{ try{ kid.postMessage({t:'pi',pi},'*'); }catch(_){} }, 600); }
+});
+document.getElementById('png').addEventListener('click',()=>{
+  // Capture at the canvas's own backing-store resolution, which is already
+  // devicePixelRatio-scaled -- pop out first and go full screen for the
+  // largest possible grab.
+  ca.toBlob(b=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);
+    a.download='panelC_pi'+pi+'_lam'+LAM.toFixed(3)+'.png';
+    a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  },'image/png');
+});
+document.getElementById('theme').addEventListener('click',function(){
+  const cur=document.documentElement.getAttribute('data-theme');
+  const nx = cur==='light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme',nx);
+  this.textContent = nx==='light' ? 'Dark' : 'Light';
+  dirty=true;
+});
+document.getElementById('pi').addEventListener('input',e=>setPi(+e.target.value));
+document.getElementById('cRun').addEventListener('click',function(){
+  running=!running; this.setAttribute('aria-pressed',running);
+  this.classList.toggle('on',running);
+});
+document.getElementById('cRestart').addEventListener('click',seedWorld);
+document.getElementById('cReroll').addEventListener('click',()=>{
+  build(R.K, null, !document.getElementById('cRagged').classList.contains('on'));
+});
+document.getElementById('cRagged').addEventListener('click',function(){
+  this.classList.toggle('on');
+  this.setAttribute('aria-pressed', this.classList.contains('on'));
+});
+document.getElementById('fill').addEventListener('change',e=>{ fillMode=e.target.value; seedWorld(); });
+document.getElementById('kstates').addEventListener('change',e=>{ build(+e.target.value, R.seed, false); });
+document.getElementById('speed').addEventListener('change',e=>{ P.ROWS_PF=+e.target.value; });
+window.addEventListener('keydown',ev=>{
+  if(ev.key!=='ArrowLeft'&&ev.key!=='ArrowRight') return;
+  if(ev.target.tagName==='SELECT') return;
+  ev.preventDefault();
+  setPi(pi+(ev.key==='ArrowRight'?1:-1)*(ev.shiftKey?10:2));
+});
+window.addEventListener('resize',fit);
+
+/* ---------- loop --------------------------------------------------------- */
+fit(); build(P.K, P.RULE_SEED, false);
+(function loop(){
+  if(running){ for(let i=0;i<P.ROWS_PF;i++) advance(); }
+  paint();
+  if(dirty){ dirty=false; drawAxis(); }
+  requestAnimationFrame(loop);
+})();
+
+/* ---------- the integration surface --------------------------------------
+   Everything the figure needs to drive this panel, and everything a reviewer
+   needs to check it, in one object -- mirroring window.FIG. */
+window.PANELC={
+  P,
+  setPi, pi:()=>pi,
+  lambda:()=>LAM, lambdaC:()=>LC,
+  probe:()=>SURV, period:()=>PERIOD, regimeOf,
+  lamOf, lamSigmaMatched,
+  setSigmaA:(s)=>{ sigmaA=s; dirty=true; return sigmaA; },
+  reroll:(seed,clean)=>{ build(R.K, seed==null?null:seed, clean!==false); return R.seed; },
+  curve:()=>CURVE, rejected:()=>REJECTED,
+  rules:()=>({K:R.K, total:R.N, inUse:RULES_ON, seed:R.seed}),
+  palette:()=>COLS.slice(),
+  restart:seedWorld,
+  /* The sweep as a table: what lambda each pi maps to and what the automaton
+     does there. This is the panel's own equivalent of FIG.ladders(). */
+  sweep:(stepSize)=>{
+    const out=[], keep=pi;
+    let l; for(let v=100;v>=0;v-=(stepSize||10)){
+      const tab=bake(R,l=lamOf(v)).tab, sp=probe(R,tab);
+      out.push({pi:v, lambda:+l.toFixed(3), v:+sp.v.toFixed(2),
+                reach:+sp.reach.toFixed(0), period:periodAt(R,tab),
+                regime:regimeOf(sp.v, CURVE&&CURVE.vsat)});
+    }
+    setPi(keep,true);
+    if(console.table) console.table(out);
+    return out;
+  },
+  /* R7: no printed number comes from one draw. */
+  assertEnsemble:()=>{
+    const ok = SURV && SURV.trials>=12 && SURV.seed===P.PR_SEED;
+    if(!ok) console.error('PANELC.assertEnsemble FAILED', SURV);
+    return ok;
+  },
+  /* No lambda the slider can reach leaves the bulk frozen. This is the
+     assertion the static-stripe bug would have failed, and the reason it
+     exists at all: the failure was visible on screen for an hour before it
+     was caught, because nothing in the figure was watching for it. */
+  assertNotFrozen:()=>{
+    if(!CURVE) return false;
+    const ok = CURVE.frozen===0;
+    if(!ok) console.error('PANELC.assertNotFrozen FAILED:', CURVE.frozen,
+                          'frozen lambda(s) inside the swept band');
+    return ok;
+  },
+  /* What the eye sees moves with what the probe measures. A panel whose
+     texture gets calmer as its order parameter rises is contradicting
+     itself, whatever the number says. */
+  assertDisorderRises:()=>{
+    if(!CURVE) return false;
+    const lo=lamLo(), hi=lamHi();
+    const at=l=>probe(R,bake(R,l).tab,{trials:24}).v;
+    const a=at(lo), b2=at((lo+hi)/2), c=at(hi);
+    const ok = (b2>=a-0.02) && (c>=b2-0.02);
+    if(!ok) console.error('PANELC.assertDisorderRises FAILED: v =',
+                          a.toFixed(2), b2.toFixed(2), c.toFixed(2));
+    return ok;
+  },
+  /* The calibration actually holds: pi = PI_SPAN lands on the measured edge. */
+  assertAnchor:()=>{
+    const d=Math.abs(lamOf(P.PI_SPAN)-LC);
+    const ok=d<1e-9;
+    if(!ok) console.error('PANELC.assertAnchor FAILED: off by', d);
+    return ok;
+  }
+};
+console.log('%cPANELC ready','color:#ff3d7f;font-weight:700',
+            'λᴄ =', LC===null?'none':LC.toFixed(4),
+            '| anchor', PANELC.assertAnchor(),
+            '| ensemble', PANELC.assertEnsemble(),
+            '| not frozen', PANELC.assertNotFrozen(),
+            '| disorder rises', PANELC.assertDisorderRises());
+})();
+</script>
+</body>
+</html>
