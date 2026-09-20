@@ -114,20 +114,21 @@ reading of REBUS its critics object to and the figure must not make it.
 **R9 — No element may require the caption to be legible.** The caption adds
 provenance; it never supplies the meaning of a mark.
 
-**R10 — Never overwrite `figure.html` without snapshotting it first.** Before any
-edit session that changes the figure, copy the current file to
-`figure.v<N>.html.bak`. The chain is the project's undo history and there is no
-other one: this folder is not a git repository, and the bundles are regenerated
-from whatever `figure.html` happens to be in place, so an overwrite with no
-snapshot is unrecoverable. Current chain:
+**R10 — The repository is the undo history.** This folder is a git repo as of
+v4, with the version chain reconstructed as real commits:
 
-    figure.v2.html.bak   pre-collar
-    figure.v3.html.bak   collar, no flashing, ring-0-only cascade
-    figure.html          v4
+    ac37a5c  v2  radial hierarchy, receptor collar, ring-0 cascade
+    26585bd  v3  precision on edges, lattice panel, deterministic cascade
+    7d13f0f  v4  criticality, flashing, ball-and-edge lattice
 
-(Initialising a git repo here would replace this rule with something better --
-every intermediate state, real diffs, no filename discipline. Not done, because
-it changes how the project is handled and that is the author's call.)
+Commit before changing the figure, and there is nothing else to remember. The
+`figure.v*.html.bak` chain that used to be the only history is superseded and
+gitignored; the files are still on disk, untracked, and can be deleted whenever
+you like — every one of them is recoverable from the log above.
+
+`.venv/` (378 MB), `cache/` (5.7 MB of downloaded atlases) and both generated
+bundles are ignored. `assets/` IS tracked: rebuilding it needs network access and
+the neuroimaging stack, so it is an input here, not an artefact.
 
 ---
 
