@@ -71,10 +71,10 @@
   .panels{display:flex; gap:12px; flex:1 1 auto; min-height:0}
   .panel{background:var(--panel); border:1px solid var(--edge); border-radius:12px;
          box-shadow:0 1px 3px var(--shadow); display:flex; flex-direction:column; min-height:0}
-  .panelA{flex:1 1 60%; min-width:0}
-  .colR{flex:1 1 40%; min-width:0; display:flex; flex-direction:column; gap:12px}
-  .panelB{flex:1 1 46%; min-height:0}
-  .panelC{flex:1 1 54%; min-height:0}
+  .panelA{flex:1 1 58%; min-width:0}
+  .colR{flex:1 1 42%; min-width:0; display:flex; flex-direction:column; gap:12px}
+  .panelB{flex:1 1 54%; min-height:0}
+  .panelC{flex:1 1 46%; min-height:0}
   .phead{display:flex; align-items:center; gap:9px; padding:9px 14px 8px;
          border-bottom:1px solid var(--edge); flex:0 0 auto}
   .ptag{font-size:11px; font-weight:700; letter-spacing:.10em; color:var(--faint)}
@@ -111,7 +111,12 @@
      four-number row and the dynamics sentence all stay. */
   :root[data-pres="1"] .hide-pres{display:none !important}
 
-  .brainwrap{position:relative; flex:1 1 auto; min-height:0; margin:5px 11px 0;
+  /* min-height is load-bearing. With min-height:0 and absolutely-positioned
+     children this box has zero content height, so any sibling with content
+     squeezed the brain render to 0px and the panel showed a caption and
+     nothing else. The ledger that used to sit below it now lives in an
+     overlay, and this box keeps a floor either way. */
+  .brainwrap{position:relative; flex:1 1 auto; min-height:190px; margin:5px 11px 0;
              aspect-ratio:1447/1000}
   .brainwrap img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain;
                  transition:opacity .16s ease; pointer-events:none}
@@ -159,14 +164,25 @@
        phone's width would render 9px type at 4px. They keep a usable width
        and their container pans instead. Keep these in step with CW/CH and
        LW/LH -- a mismatch silently crops the readout column. */
-    .panelA .cvwrap canvas{width:884px; min-width:884px; height:570px}
-    .panelB .cvwrap canvas{width:620px; min-width:620px; height:300px}
+    .panelA .cvwrap canvas{width:1000px; min-width:1000px; height:881px}
+    .panelB .cvwrap canvas{width:640px; min-width:640px; height:417px}
     .phead{flex-wrap:wrap}
     #perf{display:none}
     .controls{padding-bottom:10px}
     .label2{flex:0 0 auto; max-height:none; overflow:visible}
     .brainwrap{margin:6px 10px 0}
   }
+
+  /* The ledger. Text in a figure panel is what belongs in a caption, so the
+     INPUTS / DYNAMICS block is an overlay reached from the header rather than
+     a column that crowds the brain out of Panel C. */
+  #ledger{position:fixed; inset:0; background:rgba(8,10,14,.55); z-index:60;
+          display:none; align-items:center; justify-content:center; padding:24px}
+  #ledger.on{display:flex}
+  #ledger .box{background:var(--panel); border:1px solid var(--edge); border-radius:12px;
+               box-shadow:0 10px 40px var(--shadow); max-width:720px; width:100%;
+               max-height:100%; overflow:auto; padding:6px 18px 18px; position:relative}
+  #ledger .x{position:absolute; top:10px; right:12px}
 
   #tip{
     position:fixed; pointer-events:none; opacity:0; transition:opacity .09s;
@@ -190,6 +206,7 @@
     <span class="sub" id="subtitle">HCP-MMP 360 &middot; Mesulam type &middot; Beliveau [<sup>11</sup>C]Cimbi-36</span>
     <span id="warn"></span>
     <span class="spacer"></span>
+    <button class="ghost" id="src">Sources</button>
     <button class="ghost" id="sweep">Sweep &#9654;</button>
     <button class="ghost" id="trip" aria-pressed="false">Freeze-frame</button>
     <button class="ghost" id="pres" aria-pressed="false">Present</button>
@@ -219,12 +236,18 @@
             <button class="chip on" id="cPred" aria-pressed="true">predictions</button>
             <button class="chip on" id="cErr"  aria-pressed="true">error return</button>
             <button class="chip"    id="cInv"  aria-pressed="false">hide level inversions</button>
-            <button class="chip on" id="cCollar" aria-pressed="true">receptor collar</button>
+            <button class="chip on" id="cRho" aria-pressed="true">receptor border</button>
+            <button class="chip on" id="cFlash" aria-pressed="true">flashing</button>
+            <select class="chip" id="release" style="padding:4px 8px">
+              <option value="err">release: error &uarr;</option>
+              <option value="pred">release: prediction &darr;</option>
+            </select>
             <select class="chip" id="ncount" style="padding:4px 8px"></select>
+            <select class="chip" id="ccols" style="padding:4px 8px"></select>
           </div>
         </div>
-        <div class="hint" id="hint1"><b>Click any outer-ring node</b> to inject one prediction
-          error and watch the cascade; then move the slider and it re-traces live.
+        <div class="hint" id="hint1"><b>Click any node</b> to release one perturbation and
+          watch it propagate; then move the slider and it re-traces live.
           &larr; &rarr; move the slider (shift = larger steps) &middot; space pauses &middot;
           esc clears.</div>
       </div>
@@ -256,11 +279,14 @@
           <canvas id="bPick"></canvas>
         </div>
         <div class="blabel" id="blabel"></div>
-        <div class="label2" id="label2"></div>
       </section>
     </div>
   </div>
 </div>
+<div id="ledger"><div class="box">
+  <button class="ghost x" id="lgx">Close</button>
+  <div class="label2" id="label2"></div>
+</div></div>
 <div id="tip"></div>
 
 <script src="assets/data.js"></script>
@@ -308,13 +334,74 @@ const P = {
   HOLD_MS:1500,   // how long the finished cascade is held before it fades
   FADE_MS:600,
   // --- Panel B lattice ---------------------------------------------------
-  COLS:   36,     // lattice columns; rows are the four Mesulam levels
-  SEED_EVERY: 9,  // fixed seed comb, identical in every row. No sampling.
-  LAT0:   0.50,   // within-layer coupling, constant (horizontal connections)
-  LAT1:   0.34,   // within-layer coupling added as the node grows diffuse
+  COLS:   12,     // lattice columns; rows are the four Mesulam levels. Clamped
+                  // to the smallest row in the current subsample -- above that
+                  // a row has to repeat parcels, which is what COLS = 36 was
+                  // silently doing at every node count below 360.
+  /* The skip bond is deliberately just BELOW threshold at pi = 100
+     (0.55 x 0.58 = 0.319 < 0.34) and above it once priors relax. So the arcs
+     are drawn as structure from the first frame and visibly begin to conduct
+     partway down the slider, which is the transition happening within a level
+     rather than only across levels. */
+  ARCW:   0.58,   // weight of a within-level skip bond (c -> c+2) vs c -> c+1
+  VKEEP:  0.74,   // probability an across-level column keeps its vertical bond
+  VDIAG:  0.30,   // probability of a diagonal across-level bond to each side
+  SEED_PER: 10,   // one probe per this many columns, at least one. The comb is
+                  // identical in every row, so an uneven response to a uniform
+                  // probe is the thing the panel is showing.
+  /* Within-layer coupling. Solved, not eyeballed: the flood is max-plus, so a
+     cell d hops from a seed holds w^d and is active while w^d >= ATHETA.
+       pi = 100   w = LAT0 = 0.55         0.55^1 > 0.34 > 0.55^2   -> reach +-1
+       pi = 0     w = LAT0 + 0.55.LAT1    0.785^4 > 0.34 > 0.785^5 -> reach +-4
+     That is a 25% -> 75% sweep at 12 columns. The old 0.50/0.34 pair was
+     solved for 36 columns and saturates the row at every seed here.        */
+  LAT0:   0.55,   // within-layer coupling, constant (horizontal connections)
+  LAT1:   0.43,   // within-layer coupling added as the node grows diffuse
   VGAIN:  0.78,   // across-layer coupling, gated entirely by (1 - concentration)
   ATHETA: 0.34,   // a cell is active above this
-  BONDT:  0.36    // a coupling below this is a CLOSED bond: nothing crosses it
+  BONDT:  0.36,   // a coupling below this is a CLOSED bond: nothing crosses it
+  // --- flashing: Kuramoto phase oscillators ------------------------------
+  FLASH_T: 1.55,  // base flash period, seconds
+  FLASH_K: 4.20,  // within-ring phase coupling at full precision. Falls with idx,
+                  // which is what turns synchrony into desynchrony.
+  FLASH_KG:2.60,  // coupling falls as idx^FLASH_KG, not linearly. Linear never
+                  // takes a level below its locking threshold anywhere on the
+                  // slider, so every ring stayed synchronised and the channel
+                  // carried nothing. Solved against Kc for the tau-derived
+                  // frequency spread, not chosen by eye.
+  FLASH_MF:0.68,  // share of that coupling carried by the LEVEL's mean field
+                  // rather than by a node's two ring neighbours. Purely local
+                  // coupling on a 1-D ring does not lock at any plausible K,
+                  // so a level could never be shown flashing as one.
+  FLASH_W: 0.20,  // spread of natural frequencies, scaled by measured tau
+  FLASH_SH:7.0,   // pulse sharpness: exp(-SH*(1-cos(theta)))
+  FLASH_MIN:0.30, // a pulse below this is not drawn
+  FLASH_N: 2.00,  // phase noise, scaled by (1 - precision index). This is the
+                  // entropy channel: at pi = 100 the interval is regular.
+  FLASH_DTMAX:0.05,     // largest integration step, seconds (tab-switch guard)
+  // --- descending prediction release -------------------------------------
+  PGAIN:  1.55,   // gain per hop on the descending channel
+  PTHETA: 0.16,   // a descending branch below this is not drawn
+  // --- criticality --------------------------------------------------------
+  SIG_N:  80,     // seeds in the branching-ratio ensemble
+  SIG_SEED: 20260919,   // fixed. Same figure, same sigma, every time.
+  SIG_GMAX: 14,   // generation cap for the STATISTIC only, not the drawn cascade
+  SIG_NMAX: 400,  // node cap for the statistic only
+  // --- geometry (schematic; sweepable live via FIG.setGeom) ---------------
+  G: {
+    /* CW/CH is chosen so the canvas fits its container by WIDTH and by HEIGHT
+       at almost the same scale: a logical aspect far from the panel's own
+       aspect letterboxes, and letterbox is exactly the dead space the old
+       930x600 had at the bottom. */
+    CW:1180, CH:1040,         // Panel A logical canvas
+    CX:365,  CY:490,          // ring centre: left ~60% of the canvas
+    RADII:[310,238,166,92],   // ring 0 (idiotypic) outermost -> ring 3 (apex) innermost
+    SQUASH:0.98, CONTRACT:0.16,
+    ARC_PAD:22, LAB_PAD:36,   // stream arc, then the wedge label
+    RX:725, RW:439,           // right-hand readout column
+    LW:660, LH:430,           // Panel B logical canvas
+    BW0:0.55, BW1:3.30        // receptor border: width = BW0 + BW1 * percentile
+  }
 };
 
 /* ---------- colour (same OKLab maths as build_assets.py) ---------------- */
@@ -386,11 +473,20 @@ function desat(hex, dark){
    INNERMOST. The apex of the hierarchy is therefore the centre of the figure.
      descending predictions  = inner ring -> outer ring  (travel outward)
      ascending  errors       = outer ring -> inner ring  (travel inward)     */
-const RADII=[164,125,87,48], SQUASH=0.98, CONTRACT=0.16;
-const CW=930, CH=600, CX=243, CY=234;
-const COLLAR_IN=10, COLLAR_W=5.2;           // the receptor collar, in each ring's gutter
-const ARC_R=RADII[0]+22, LAB_R=RADII[0]+34; // stream arc, then the wedge label
-const RX=452, RW=462;                       // right-hand readout column
+/* Geometry lives in P.G, which is the single source of truth, and is mirrored
+   into these bindings once per applyGeom() so the drawing code stays terse and
+   so a live sweep from the console actually moves the picture:
+     FIG.setGeom({CX:400}) -> applyGeom -> fit -> regeom.
+   Nothing below may be reassigned anywhere except applyGeom().              */
+let RADII, SQUASH, CONTRACT, CW, CH, CX, CY, ARC_R, LAB_R, RX, RW, LW, LH;
+function applyGeom(){
+  const g=P.G;
+  RADII=g.RADII; SQUASH=g.SQUASH; CONTRACT=g.CONTRACT;
+  CW=g.CW; CH=g.CH; CX=g.CX; CY=g.CY;
+  ARC_R=RADII[0]+g.ARC_PAD; LAB_R=RADII[0]+g.LAB_PAD;
+  RX=g.RX; RW=g.RW; LW=g.LW; LH=g.LH;
+}
+applyGeom();
 const MODS=['visual','auditory','somatomotor',null];
 /* The unlabelled wedge is NOT motor -- see censusWedge() on the console. Every
    motor parcel (4, 3a/3b/1, 6a/6d/6v/6r/6mp, 55b, FEF, PEF, 5m, 5mv, 24dd)
@@ -468,7 +564,7 @@ const T_DOWN=0, T_SIDE_T=1, T_SIDE_S=2, T_DOWN2=3, T_SIDE_2=4, T_SIDE_S2=5;
 const TIER_S=[1.00, 0.70, 0.50, 0.34, 0.24, 0.20];
 // Pure view state. Nothing in here is coupled to anything else in here, and
 // nothing in here is coupled to whether a cascade has been fired.
-const SHOW={pred:true, err:true, collar:true, hideInv:false};
+const SHOW={pred:true, err:true, rho:true, hideInv:false, flash:true};
 let motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 let PRES=false;
 
@@ -521,7 +617,9 @@ function build(target){
     arr.forEach((n,i)=>{ n.slot=Math.PI*2/arr.length;
                          n.ang = -Math.PI/2 + Math.PI*2*i/arr.length; });
   });
-  nodes.forEach((n,i)=>{ n.i=i; n.R=RADII[n.ring]; n.cx=Math.cos(n.ang); n.cy=Math.sin(n.ang)*SQUASH; });
+  // n.R is NOT cached: regeom() reads RADII[ring] each time so that a live
+  // geometry sweep does not need the whole topology rebuilt.
+  nodes.forEach((n,i)=>{ n.i=i; n.cx=Math.cos(n.ang); n.cy=Math.sin(n.ang); });
 
   // level and tau, normalised across the selected nodes
   const lv=nodes.map(n=>n.lvlRaw), lmin=Math.min(...lv), lmax=Math.max(...lv);
@@ -659,19 +757,50 @@ function build(target){
   nodes.forEach(n=>{ n.col = PAL.ring[n.ring]; });
 
   /* ---- Panel B lattice ------------------------------------------------ *
-   * The same parcels, unrolled. Row r is Mesulam ring r; columns follow the
-   * Margulies gradient, the same order that sets angle in Panel A. Rings hold
-   * different numbers of parcels, so each row is sampled at COLS evenly
-   * spaced gradient ranks -- deterministic, no sampling in the random sense. */
-  const grid=[];
+   * The same parcels, unrolled, as a NETWORK rather than a stack of bars.
+   * Row r is Mesulam ring r; columns follow the Margulies gradient, the same
+   * order that sets angle in Panel A.
+   *
+   * COLS is clamped to the smallest row, so every ball is a distinct real
+   * parcel and Panel B's set is a strict subset of Panel A's. The rows hold
+   * 44/121/127/68 parcels, so equal rows sample them at different RATES --
+   * stated on the panel, and accepted because this panel's job is the phase
+   * transition and its seed comb exists so that a uniform probe makes an
+   * uneven response legible.
+   *
+   * Across-level edges are sparse and irregular, including diagonals: an
+   * exclusively vertical bond set is what made this read as stacked
+   * rectangles no matter what shape the cells were. Drawn from a seeded
+   * generator, so the wiring is the same every time the figure is opened. */
+  const minRow=Math.min(...byRing.map(a=>a.length||1));
+  const C=Math.max(3, Math.min(P.COLS, minRow));
+  const grid=[], rowN=[];
   for(let r=0;r<4;r++){
     const arr=byRing[r], row=[];
-    for(let c=0;c<P.COLS;c++){
+    for(let c=0;c<C;c++){
       row.push(arr.length ? arr[Math.min(arr.length-1,
-        Math.floor((c+0.5)*arr.length/P.COLS))].i : -1);
+        Math.floor((c+0.5)*arr.length/C))].i : -1);
     }
-    grid.push(row);
+    grid.push(row); rowN.push(arr.length);
   }
+  const lrnd=mulberry32((P.SIG_SEED ^ (C*7919))>>>0);
+  const vEdges=[];
+  for(let r=0;r<3;r++){
+    const list=[], have=new Array(C).fill(0);
+    for(let c=0;c<C;c++){
+      if(lrnd()<P.VKEEP){ list.push({c, c2:c}); have[c]++; }
+      if(c+1<C && lrnd()<P.VDIAG){ list.push({c, c2:c+1}); have[c]++; }
+      if(c-1>=0 && lrnd()<P.VDIAG){ list.push({c, c2:c-1}); have[c]++; }
+    }
+    // no column may be orphaned across a level, or the percolation question
+    // stops being about coupling strength and starts being about the wiring
+    for(let c=0;c<C;c++) if(!have[c]) list.push({c, c2:c});
+    vEdges.push(list);
+  }
+  const nSeed=Math.max(1, Math.round(C/P.SEED_PER));
+  const seedCols=[];
+  for(let k=0;k<nSeed;k++) seedCols.push(Math.min(C-1, Math.round((k+0.5)*C/nSeed - 0.5)));
+  const seedSet=new Set(seedCols);
 
   // Inversion census over the anatomical tier only, reported in the key.
   let nCross=0, nInv=0; const invPair={};
@@ -688,6 +817,7 @@ function build(target){
   const sizeK = Math.max(0.72, Math.min(1.3, Math.sqrt(150/nodes.length)));
 
   return {nodes, byRing, edges, innerAdj, outerAdj, ringAdj, cand, grid,
+          cols:C, rowN, vEdges, seedCols, seedSet, minRow,
           sectors, sizeK, tauLo, tauHi, invPair, nCross, nInv, lspan,
           PX:new Float32Array(nodes.length), PY:new Float32Array(nodes.length)};
 }
@@ -766,6 +896,7 @@ function reprecision(){
 /* ---------- the reciprocal map: who predicts me -------------------------
    Built off exactly the edges that are drawn. A node's ascending fan-out is
    therefore not a separate assumption: it is the descending map, reversed. */
+let RELEASE='err';
 function reciprocal(){
   const n=M.nodes.length, back=[];
   for(let i=0;i<n;i++) back.push([]);
@@ -789,17 +920,23 @@ function reciprocal(){
    holds a single target, conc = 1, and the error is explained away where it
    lands. As targets proliferate conc falls, less of the error is cancelled,
    and the cascade climbs. BMAX / GMAX / NMAX are legibility caps, not model. */
-function traceCascade(seed){
+function traceCascade(seed, raw){
+  // raw = drop the legibility caps. The DRAWN cascade is capped so a row fits
+  // on the page; the branching ratio must not be, or the statistic is just a
+  // measurement of BMAX. Same dynamics, different caps, and the figure says so.
+  const GMAX = raw ? P.SIG_GMAX : P.GMAX;
+  const NMAX = raw ? P.SIG_NMAX : P.NMAX;
+  const BMAX = raw ? 1e9 : P.BMAX;
   const gens=[[{node:seed, e:1}]];
   const seen=new Set([seed]);
   let total=1;
-  for(let g=1; g<=P.GMAX && total<P.NMAX; g++){
+  for(let g=1; g<=GMAX && total<NMAX; g++){
     const next=[];
     for(const cur of gens[g-1]){
       const parents=S.back[cur.node]||[];
       let taken=0;
       for(const pa of parents){
-        if(taken>=P.BMAX || total+next.length>=P.NMAX) break;
+        if(taken>=BMAX || total+next.length>=NMAX) break;
         if(seen.has(pa.from)) continue;
         const y=pa.from;
         const e = cur.e * P.CGAIN * Math.pow(pa.p, P.CSHARE) * (1-S.idx[y]);
@@ -811,7 +948,121 @@ function traceCascade(seed){
     gens.push(next); total+=next.length;
   }
   const deepest=Math.max(...gens.flat().map(s=>M.nodes[s.node].ring));
-  return {gens, total, deepest, seed, t0:performance.now(), paused:false, pauseAt:0};
+  return {gens, total, deepest, seed, dir:'err', col:boost(PAL.ring[0], THEME.dark),
+          t0:performance.now(), paused:false, pauseAt:0};
+}
+
+/* ---------- one released PREDICTION --------------------------------------
+   The mirror of the cascade, on the channel the drug is actually claimed to
+   act on. REBUS is a statement about DESCENDING precision, so a figure whose
+   only animated event climbs upward is animating the wrong arrow.
+
+     arriving at y  =  e(x) . PGAIN . share(x->y)
+
+   No (1 - idx) factor here, because a prediction is not explained away: it is
+   emitted. What the slider changes is how many branches there are and how
+   thin each one is -- the same proliferation the static channel draws, now as
+   an event you can watch reach, or fail to reach, the surface.             */
+function tracePrediction(seed, raw){
+  const GMAX = raw ? P.SIG_GMAX : P.GMAX;
+  const NMAX = raw ? P.SIG_NMAX : P.NMAX;
+  const BMAX = raw ? 1e9 : P.BMAX;
+  const gens=[[{node:seed, e:1}]];
+  const seen=new Set([seed]);
+  let total=1;
+  for(let g=1; g<=GMAX && total<NMAX; g++){
+    const next=[];
+    for(const cur of gens[g-1]){
+      const list=M.cand[cur.node], k=S.K[cur.node], p=S.share[cur.node];
+      let taken=0;
+      for(let j=0;j<k;j++){
+        if(taken>=BMAX || total+next.length>=NMAX) break;
+        const y=list[j].j;
+        if(seen.has(y)) continue;
+        const e=cur.e * P.PGAIN * p[j];
+        if(e < P.PTHETA) continue;        // too thin to still be a prediction
+        seen.add(y); next.push({node:y, e, from:cur.node}); taken++;
+      }
+    }
+    if(!next.length) break;
+    gens.push(next); total+=next.length;
+  }
+  const deepest=Math.min(...gens.flat().map(s=>M.nodes[s.node].ring));
+  return {gens, total, deepest, seed, dir:'pred', col:PAL.transmodal,
+          t0:performance.now(), paused:false, pauseAt:0};
+}
+const traceRelease = (seed, raw) =>
+  RELEASE==='pred' ? tracePrediction(seed, raw) : traceCascade(seed, raw);
+
+/* ======================================================================== *
+ *  CRITICALITY.
+ *
+ *  Two readouts, both of things the figure already draws, neither of them a
+ *  new object bolted on:
+ *
+ *  sigma  the branching ratio of the released perturbation. It is literally
+ *         each ladder row's width over the previous row's, averaged over an
+ *         ENSEMBLE of seeds rather than read off one click -- one draw is a
+ *         trajectory, and criticality is a property of the distribution.
+ *         Below 1 a perturbation dies out; at 1 it sustains; above 1 it
+ *         spreads. Computed with the legibility caps OFF.
+ *
+ *  pi_c   the percolation threshold: the slider position at which the first
+ *         patch in Panel B spans a level. Percolation on a lattice is the
+ *         cleanest criticality there is and needs no axis, no fit and no
+ *         power law -- which is why the figure carries this and not an
+ *         avalanche-size distribution.
+ * ======================================================================== */
+function sigmaEnsemble(){
+  const n=M.nodes.length;
+  if(!n) return {sigma:0, runs:0};
+  const rnd=mulberry32(P.SIG_SEED);
+  const runs=Math.min(P.SIG_N, n);
+  const picked=new Set(); const seeds=[];
+  // Seeds are drawn from ALL rings, not just the surface: an error can arise
+  // wherever a prediction fails, and heteromodal is where this receptor map
+  // actually peaks.
+  while(seeds.length<runs){
+    const i=Math.floor(rnd()*n);
+    if(picked.has(i)) continue;
+    picked.add(i); seeds.push(i);
+  }
+  let parents=0, children=0, died=0, spread=0;
+  for(const sd of seeds){
+    const tr=traceRelease(sd, true);
+    for(let g=0; g<tr.gens.length; g++){
+      parents += tr.gens[g].length;
+      if(g+1<tr.gens.length) children += tr.gens[g+1].length;
+    }
+    if(tr.gens.length<=1) died++;
+    if(tr.gens.length>3) spread++;
+  }
+  return {sigma: parents ? children/parents : 0, runs, died, spread, seed:P.SIG_SEED};
+}
+/* Where Panel B first breaks through. Swept once per topology, not per frame. */
+function percolationPi(){
+  const keep=precision;
+  let hit=null;
+  for(let v=100; v>=0; v--){
+    precision=v/100; reprecision(); reciprocal(); relattice();
+    if(S.lat.spanRows>1){ hit=v; break; }
+  }
+  precision=keep; reprecision(); reciprocal(); relattice();
+  return hit;
+}
+let PI_C=null, SIG=null;
+/* One vocabulary for the regime, derived from sigma and from nothing else, so
+   the triptych and the headline cannot disagree about what state the figure is
+   in. Note the top of the range: this model is tuned to approach 1 from below
+   and stop there. Sustained sigma > 1 in cortex is a seizure, not a psychedelic,
+   and the lattice was always described as bottoming out patchy rather than
+   noise-dominated -- that design intent is now a checkable number. */
+function regimeOf(sg){
+  if(sg<0.35) return 'subcritical';
+  if(sg<0.80) return 'subcritical';
+  if(sg<0.97) return 'approaching critical';
+  if(sg<=1.05) return 'near-critical';
+  return 'supercritical';
 }
 
 /* ---------- freeze-frame: the same click at three precisions ------------
@@ -825,11 +1076,16 @@ function tripCompute(seed){
   const keep=precision, out=[];
   for(const pv of P.TRIP){
     precision=pv/100; reprecision(); reciprocal();
-    const tr=traceCascade(seed);
+    const tr=traceRelease(seed);
     const hops=tr.gens.length-1;
-    out.push({pi:pv, total:tr.total, hops, deepest:tr.deepest,
+    const ens=sigmaEnsemble();          // the regime is a property of the ensemble,
+    out.push({pi:pv, total:tr.total, hops, deepest:tr.deepest, sigma:ens.sigma,
       rows:tr.gens.map(g=>g.map(x=>M.nodes[x.node].ring)),
-      verdict: hops<=1 ? 'dies out' : (hops<=3 ? 'holds' : 'spreads')});
+      // verdict describes THIS run -- the ladder actually drawn in the pane.
+      // regime describes the ENSEMBLE at that slider position. Two different
+      // claims, and the figure no longer lets one be mistaken for the other.
+      verdict: hops<=1 ? 'dies out' : (hops<=3 ? 'holds' : 'spreads'),
+      regime:  regimeOf(ens.sigma)});
   }
   precision=keep; reprecision(); reciprocal(); relattice();
   return {seed, panes:out};
@@ -853,36 +1109,49 @@ function tripCompute(seed){
    critical side; it never reaches a noise-dominated state, which would depict
    a seizure. Flood fill, max-plus, deterministic. */
 function relattice(){
-  const C=P.COLS, A=[], node=M.grid;
+  const C=M.cols, A=[], node=M.grid;
   for(let r=0;r<4;r++) A.push(new Float64Array(C));
   const cc = (r,c)=>{ const i=node[r][c]; return i<0 ? 1 : S.idx[i]; };
-  // bond strengths. A bond below BONDT is CLOSED: nothing crosses it, and the
-  // cells on either side of it are in different patches even though they are
-  // drawn next to each other. That is what makes the vertical direction go
-  // from sealed to open as pi falls, instead of being open all along.
-  const hb=[], vb=[];                       // horizontal (r,c)-(r,c+1); vertical (r,c)-(r+1,c)
-  for(let r=0;r<4;r++){ hb.push(new Float64Array(C)); vb.push(new Float64Array(C)); }
+  /* Bond strengths. A bond below BONDT is CLOSED: nothing crosses it, and the
+     cells on either side are in different patches even though they are drawn
+     next to each other. Three kinds now, because the panel is a network:
+       hb   within level, c -> c+1     constant part; the drug is not claimed
+       ab   within level, c -> c+2     to touch lateral coupling
+       vE   across level, c -> c'      gated entirely by the UPPER cell
+     The full bond set is always DRAWN; what changes with the slider is which
+     of them are open. Structure and state are different things and the panel
+     now says which is which. */
+  const hb=[], ab=[];
+  for(let r=0;r<4;r++){ hb.push(new Float64Array(C)); ab.push(new Float64Array(C)); }
   for(let r=0;r<4;r++) for(let c=0;c<C;c++){
     if(c<C-1) hb[r][c]=P.LAT0+P.LAT1*(1-Math.min(cc(r,c),cc(r,c+1)));
-    if(r<3)   vb[r][c]=P.VGAIN*(1-cc(r+1,c));      // gated by the UPPER cell
+    if(c<C-2) ab[r][c]=(P.LAT0+P.LAT1*(1-Math.min(cc(r,c),cc(r,c+2))))*P.ARCW;
   }
+  const vE=[];
+  for(let r=0;r<3;r++) vE.push(M.vEdges[r].map(e=>({c:e.c, c2:e.c2,
+                                w:P.VGAIN*(1-cc(r+1,e.c2))})));
   const open=(w)=>w>=P.BONDT;
+  const idOf=(r,c)=>r*C+c;
+  const adj=new Array(4*C); for(let i=0;i<4*C;i++) adj[i]=[];
+  const link=(r1,c1,r2,c2,w)=>{ adj[idOf(r1,c1)].push([r2,c2,w]);
+                                adj[idOf(r2,c2)].push([r1,c1,w]); };
+  for(let r=0;r<4;r++) for(let c=0;c<C;c++){
+    if(c<C-1) link(r,c,r,c+1,hb[r][c]);
+    if(c<C-2) link(r,c,r,c+2,ab[r][c]);
+  }
+  for(let r=0;r<3;r++) for(const e of vE[r]) link(r,e.c,r+1,e.c2,e.w);
   const q=[];
   for(let r=0;r<4;r++) for(let c=0;c<C;c++){
-    if(c%P.SEED_EVERY!==2) continue;
+    if(!M.seedSet.has(c)) continue;
     A[r][c]=1; q.push([r,c]);
   }
   for(let h=0; h<q.length; h++){
     const [r,c]=q[h], a=A[r][c];
-    const push=(r2,c2,w)=>{
-      if(r2<0||r2>3||c2<0||c2>=C || !open(w)) return;
+    for(const [r2,c2,w] of adj[idOf(r,c)]){
+      if(!open(w)) continue;
       const v=a*w;
       if(v>A[r2][c2]+1e-9 && v>=P.ATHETA*0.5){ A[r2][c2]=v; q.push([r2,c2]); }
-    };
-    if(c>0)   push(r,c-1, hb[r][c-1]);
-    if(c<C-1) push(r,c+1, hb[r][c]);
-    if(r<3)   push(r+1,c, vb[r][c]);
-    if(r>0)   push(r-1,c, vb[r-1][c]);             // the same bond, read downward
+    }
   }
   // patches = components of active cells joined by OPEN bonds
   const on=[], lab=[];
@@ -897,10 +1166,8 @@ function relattice(){
     while(st.length){
       const [y,x]=st.pop(); cells.push([y,x]);
       if(y<r0) r0=y; if(y>r1) r1=y;
-      const nb=[[y,x-1,x>0&&open(hb[y][x-1])],[y,x+1,x<C-1&&open(hb[y][x])],
-                [y-1,x,y>0&&open(vb[y-1][x])],[y+1,x,y<3&&open(vb[y][x])]];
-      for(const [y2,x2,ok] of nb){
-        if(!ok || y2<0||y2>3||x2<0||x2>=C) continue;
+      for(const [y2,x2,w] of adj[idOf(y,x)]){
+        if(!open(w)) continue;
         if(!on[y2][x2] || lab[y2][x2]>=0) continue;
         lab[y2][x2]=nc; st.push([y2,x2]);
       }
@@ -910,10 +1177,109 @@ function relattice(){
   comp.sort((a,b)=>b.n-a.n);
   const spanRows=comp.length?Math.max(...comp.map(c=>c.rows)):0;
   let nvb=0, nvtot=0;
-  for(let r=0;r<3;r++) for(let c=0;c<C;c++){ nvtot++; if(open(vb[r][c])) nvb++; }
-  S.lat={A, on, lab, comp, hb, vb, nOn, frac:nOn/(4*C), spanRows,
+  for(let r=0;r<3;r++) for(const e of vE[r]){ nvtot++; if(open(e.w)) nvb++; }
+  S.lat={A, on, lab, comp, hb, ab, vE, adj, nOn, frac:nOn/(4*C), spanRows,
          vOpen:nvb, vTot:nvtot, biggest:comp.length?comp[0].n:0};
   latDirty=true;
+}
+
+/* ======================================================================== *
+ *  FLASHING -- Kuramoto phase oscillators, one per node.
+ *
+ *  This is a simulation, and it is the figure's only time axis: everything
+ *  else is a static function of the slider. Three readings ride on it, and
+ *  each one is a different property of the same phases:
+ *
+ *    desynchronisation   relative PHASE. Within-ring coupling is K . idx, so
+ *                        at pi = 100 a ring flashes as one and as precision
+ *                        relaxes the phases drift apart. The ring order
+ *                        parameter R = |<e^i.theta>| is that, as a number.
+ *    entropy             REGULARITY OF INTERVAL. Phase noise is scaled by
+ *                        (1 - idx), so the flashes go from metronomic to
+ *                        ragged as priors relax.
+ *    criticality         NOT here. It is spatial, it lives in Panel B, and a
+ *                        single instant of twinkle cannot carry it.
+ *
+ *  Natural frequency comes from the MEASURED timescale: a long-tau parcel
+ *  flashes slower. Seeded, so the same figure flashes the same way twice.
+ * ======================================================================== */
+function mulberry32(a){
+  return function(){
+    a=(a+0x6D2B79F5)|0;
+    let t=Math.imul(a^(a>>>15), 1|a);
+    t=(t+Math.imul(t^(t>>>7), 61|t))^t;
+    return ((t^(t>>>14))>>>0)/4294967296;
+  };
+}
+const FLASH={th:null, om:null, pulse:null, order:[0,0,0,0], last:0, rnd:null};
+function initFlash(){
+  const n=M.nodes.length, rnd=mulberry32(P.SIG_SEED);
+  FLASH.th=new Float64Array(n); FLASH.om=new Float64Array(n);
+  FLASH.pulse=new Float64Array(n); FLASH.nx=new Float64Array(n);
+  FLASH.psi=new Float64Array(4); FLASH.Rr=new Float64Array(4);
+  FLASH.rnd=rnd; FLASH.last=0;
+  const w0=2*Math.PI/P.FLASH_T;
+  for(let i=0;i<n;i++){
+    FLASH.th[i]=rnd()*Math.PI*2;
+    // long tau -> slower. tauN is the measured percentile rank.
+    FLASH.om[i]=w0*(1 - P.FLASH_W*(M.nodes[i].tauN-0.5)*2);
+  }
+}
+/* One Euler step. Coupling is within-ring only: the claim is that a level
+   loses its internal coherence, not that the levels uncouple from each other
+   -- that second thing is Panel B's bonds, and putting it here too would be
+   the same idea drawn twice. */
+function stepFlash(dt){
+  if(!FLASH.th) return;
+  const N=M.nodes, n=N.length, th=FLASH.th, om=FLASH.om, adj=M.ringAdj;
+  // The level's mean field first, from the current phases. R is the order
+  // parameter the coherence bars read, so the number on the page and the force
+  // driving the oscillators are the same quantity, not two estimates of it.
+  const psi=FLASH.psi, Rr=FLASH.Rr;
+  for(let r=0;r<4;r++){
+    const a=M.byRing[r]; let sx=0, sy=0;
+    for(const nd of a){ sx+=Math.cos(th[nd.i]); sy+=Math.sin(th[nd.i]); }
+    if(a.length){ sx/=a.length; sy/=a.length; }
+    psi[r]=Math.atan2(sy,sx); Rr[r]=Math.hypot(sx,sy);
+    FLASH.order[r]=Rr[r];
+  }
+  const nx=FLASH.nx, sq=Math.sqrt(dt);
+  for(let i=0;i<n;i++){
+    const a=adj[i]; let loc=0;
+    for(let q=0;q<a.length;q++) loc+=Math.sin(th[a[q]]-th[i]);
+    if(a.length) loc/=a.length;
+    const r=N[i].ring;
+    const mf=Rr[r]*Math.sin(psi[r]-th[i]);
+    const idx=S.idx[i];
+    // Coupling is gated by the node's OWN precision index: a parcel whose
+    // descending output has spread out is the parcel that stops keeping time
+    // with its level. Noise is gated by the same quantity, inverted.
+    const drive=P.FLASH_K*Math.pow(idx,P.FLASH_KG)*(P.FLASH_MF*mf + (1-P.FLASH_MF)*loc);
+    const noise=P.FLASH_N*(1-idx)*(FLASH.rnd()*2-1)*sq;
+    nx[i]=th[i] + dt*(om[i] + drive) + noise;
+  }
+  for(let i=0;i<n;i++){
+    let v=nx[i]%(Math.PI*2); if(v<0) v+=Math.PI*2;
+    th[i]=v;
+    FLASH.pulse[i]=Math.exp(-P.FLASH_SH*(1-Math.cos(v)));
+  }
+}
+/* The flash itself: a brightened core inside the receptor border, and a soft
+   halo outside it, so neither the Mesulam fill nor the border width is ever
+   obscured by the thing riding on top of them. */
+function drawFlash(ts){
+  if(!SHOW.flash || !FLASH.pulse) return;
+  const PX=M.PX, PY=M.PY, N=M.nodes;
+  for(let i=0;i<N.length;i++){
+    const u=FLASH.pulse[i];
+    if(u<P.FLASH_MIN) continue;
+    const n=N[i], k=(u-P.FLASH_MIN)/(1-P.FLASH_MIN);
+    ctx.fillStyle=withA(boost(n.col, THEME.dark), 0.30+0.60*k);
+    ctx.beginPath(); ctx.arc(PX[i],PY[i], n.nr*0.92, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle=withA(boost(n.col, THEME.dark), 0.38*k);
+    ctx.lineWidth=1.5+2.2*k;
+    ctx.beginPath(); ctx.arc(PX[i],PY[i], n.nr+4.5+4.5*k, 0, Math.PI*2); ctx.stroke();
+  }
 }
 
 /* ---------- rendering --------------------------------------------------- */
@@ -993,8 +1359,9 @@ const WE=0.75;                                // error-return line width, consta
 function regeom(){
   const k=contraction(), N=M.nodes, PX=M.PX, PY=M.PY;
   for(let i=0;i<N.length;i++){
-    const n=N[i], r=n.R*k;
-    PX[i]=CX+n.cx*r; PY[i]=CY+n.cy*r;
+    const n=N[i], r=RADII[n.ring]*k;
+    n.R=RADII[n.ring];
+    PX[i]=CX+n.cx*r; PY[i]=CY+n.cy*r*SQUASH;
   }
   // static scaffold, baked once per geometry
   const sc=new Path2D();
@@ -1054,8 +1421,8 @@ function regeom(){
     ? 2*Math.PI*RADII[r]*k/M.byRing[r].length : 99);
   for(const n of N){
     const i=n.i;
-    const nr=Math.max(1.1, Math.min(0.42*gap[n.ring],
-                      (1.35 + 2.70*n.tauN)*M.sizeK));            // radius from tau
+    const nr=Math.max(1.6, Math.min(0.46*gap[n.ring],
+                      (2.30 + 4.60*n.tauN)*M.sizeK));            // radius from tau
     n.nr=nr;
     if(!n.rhoOk){ hollow.push(n); continue; }
     let g=dots.get(n.col);
@@ -1064,30 +1431,45 @@ function regeom(){
   }
   M.dotList=dotList; M.hollow=hollow;
 
-  /* ---- the receptor collar -------------------------------------------- *
-   * One thin arc track per ring, in the gutter just inside that ring's node
-   * orbit. Receptor density varies both radially and angularly, and any
-   * single-axis encoding flattens one of those; four concentric bands keep
-   * both. Each segment spans one node's angular slot and carries that
-   * parcel's own percentile -- the finest honest cell there is. A parcel
-   * flagged rhoValid=false leaves a real gap, not a zero.                  */
-  const coll=new Map(), collList=[];
+  /* ---- the receptor border -------------------------------------------- *
+   * 5-HT2A percentile is drawn as the WIDTH of a ring around each node, in
+   * the receptor ramp's own darkest colour. It replaces the four-track collar
+   * that used to sit in the gutter: receptor density is a property of a
+   * parcel, so it belongs on the parcel's mark, and the gutter is exactly
+   * where two thousand descending edges cross at low precision.
+   *
+   * Width, not colour, carries the value -- so it is still percentile-coded,
+   * for the same reason the collar was: the measured BPnd spread is narrow
+   * enough that a linear encoding reads flat. A parcel with no cortical-ribbon
+   * signal gets a DASHED border, never a thin one: "no claim" must not be
+   * readable as "low".                                                      */
+  const bors=new Map(), borList=[];
   for(const n of N){
     if(!n.rhoOk) continue;
-    const c=rhoCol(n.rk), key=qkey(c);
-    let g=coll.get(key);
-    if(!g){ g={col:c, path:new Path2D()}; coll.set(key,g); collList.push(g); }
-    const rr=(n.R-COLLAR_IN)*k;
-    const half=n.slot*0.5;
-    g.path.moveTo(CX+Math.cos(n.ang-half)*rr, CY+Math.sin(n.ang-half)*rr*SQUASH);
-    g.path.ellipse(CX,CY,rr,rr*SQUASH,0,n.ang-half,n.ang+half);
+    const w=P.G.BW0 + P.G.BW1*n.rk;
+    const wb=qbin(n.rk);
+    let g=bors.get(wb);
+    if(!g){ g={w:P.G.BW0+P.G.BW1*(wb/(NB-1)), path:new Path2D()};
+            bors.set(wb,g); borList.push(g); }
+    const rr=n.nr + g.w*0.5 + 0.35;
+    g.path.moveTo(PX[n.i]+rr, PY[n.i]);
+    g.path.arc(PX[n.i],PY[n.i],rr,0,Math.PI*2);
   }
-  M.collarList=collList;
+  M.borderList=borList;
+
   dirty=true;
 }
 
 function draw(ts){
   const t0=performance.now();
+  // Integrate the oscillators here rather than on a timer, so a hidden tab
+  // does not accumulate an enormous step and scramble every phase at once.
+  if(motion && FLASH.th){
+    const now=ts||performance.now();
+    const dt=Math.min(P.FLASH_DTMAX, FLASH.last ? (now-FLASH.last)/1000 : 0.016);
+    FLASH.last=now;
+    if(dt>0) stepFlash(dt);
+  } else if(FLASH.th && !FLASH.last){ stepFlash(0.016); FLASH.last=ts||1; }
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height); ctx.restore();
   const PX=M.PX, PY=M.PY;
@@ -1120,21 +1502,25 @@ function draw(ts){
   }
   ctx.setLineDash([]); ctx.lineCap='butt'; ctx.lineDashOffset=0;
 
-  // The receptor collar sits ON TOP of the traffic. It is an input, not an
-  // output: at low precision two thousand edges cross the gutter it lives in,
-  // and underneath them it would disappear exactly when the figure most needs
-  // it read.
-  if(SHOW.collar) drawCollar();
-
   // nodes
   for(const g of M.dotList){ ctx.fillStyle=g.col; ctx.fill(g.path); }
-  // a parcel with no PET signal is drawn hollow, so "no measurement" cannot be
-  // mistaken for "measured zero"
-  ctx.lineWidth=1.1;
+  // The receptor border sits ON TOP of the traffic. It is an input, not an
+  // output: at low precision two thousand edges cross this ring of the picture,
+  // and underneath them it would disappear exactly when the figure most needs
+  // it read.
+  if(SHOW.rho){
+    ctx.setLineDash([]); ctx.strokeStyle=RHOCOL();
+    for(const g of M.borderList){ ctx.lineWidth=g.w; ctx.stroke(g.path); }
+  }
+  // a parcel with no PET signal gets a DASHED outline and no fill, so "no
+  // measurement" cannot be read as "measured zero" or as "low density"
+  ctx.lineWidth=1.2; ctx.setLineDash([2.2,2.2]);
   for(const n of M.hollow){
     ctx.strokeStyle=n.col;
     ctx.beginPath(); ctx.arc(PX[n.i],PY[n.i],n.nr,0,Math.PI*2); ctx.stroke();
   }
+  ctx.setLineDash([]);
+  drawFlash(ts);
 
   if(hoverRing>=0){
     ctx.lineWidth=2.6;
@@ -1156,6 +1542,7 @@ function draw(ts){
   drawRhoBar();
   drawKey();
   drawPrecisionRow();
+  drawCriticality();
   drawLadder();
   drawDynamics();
 
@@ -1173,36 +1560,34 @@ function hudHTML(ms){
          ' · weight/target ×'+S.perTarget.toFixed(2);
 }
 
-function drawCollar(){
-  ctx.setLineDash([]); ctx.lineCap='butt'; ctx.lineWidth=COLLAR_W;
-  for(const g of M.collarList){ ctx.strokeStyle=g.col; ctx.stroke(g.path); }
-}
-
-/* The colourbar. The collar is coloured by PERCENTILE, because the measured
-   spread is narrow enough that a linear encoding of it reads as one flat
-   colour on a projector. The axis is therefore percentile, with BPnd printed
-   at the deciles so the real spacing is still on the page. */
+/* The receptor legend. Width, not colour, is the channel now, so the legend
+   is a row of sample nodes at rising border width with BPnd printed at the
+   deciles -- the same disclosure the colourbar used to make, in the encoding
+   the figure actually uses. */
+const RHOCOL = () => THEME.dark ? '#c7554e' : '#6d1119';
 function drawRhoBar(){
-  const X=14, W=182, BY=27, BH=8;
+  const X=16, BY=34, SP=46;
   ctx.textAlign='left';
-  ctx.fillStyle=THEME.dim; ctx.font=fnt(9,'700');
-  ctx.fillText('5-HT2A COLLAR · percentile of Cimbi-36 BPₙᵈ', X, 13);
-  for(let i=0;i<W;i++){ ctx.fillStyle=rhoCol(i/(W-1)); ctx.fillRect(X+i, BY, 1.5, BH); }
-  ctx.strokeStyle=THEME.edge; ctx.lineWidth=1;
-  ctx.strokeRect(X-0.5, BY-0.5, W+1, BH+1);
-  ctx.font=fnt(8.5); ctx.fillStyle=THEME.faint;
-  const tick=(f,lab,al)=>{ const x=X+W*f;
-    ctx.strokeStyle=withA(THEME.fg,0.5); ctx.beginPath();
-    ctx.moveTo(x,BY+BH); ctx.lineTo(x,BY+BH+3); ctx.stroke();
-    ctx.textAlign=al; ctx.fillText(lab, x, BY+BH+12); };
-  tick(0.10, RHO.p10.toFixed(0), 'left');
-  tick(0.50, RHO.med.toFixed(0), 'center');
-  tick(0.90, RHO.p90.toFixed(0)+' BPₙᵈ', 'right');
+  ctx.fillStyle=THEME.dim; ctx.font=fnt(9.5,'700');
+  ctx.fillText('5-HT2A  ·  border width = percentile of Cimbi-36 BPₙᵈ', X, 15);
+  const marks=[[0.10,RHO.p10],[0.50,RHO.med],[0.90,RHO.p90]];
+  ctx.setLineDash([]);
+  marks.forEach(([f,v],i)=>{
+    const x=X+12+i*SP, w=P.G.BW0+P.G.BW1*f, rr=6.2;
+    ctx.fillStyle=withA(THEME.fg, THEME.dark?0.18:0.10);
+    ctx.beginPath(); ctx.arc(x,BY,rr,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=RHOCOL(); ctx.lineWidth=w;
+    ctx.beginPath(); ctx.arc(x,BY,rr+w*0.5+0.35,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle=THEME.faint; ctx.font=fnt(8.5); ctx.textAlign='center';
+    ctx.fillText(v.toFixed(0), x, BY+19);
+  });
   ctx.textAlign='left';
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(8.5);
+  ctx.fillText('BPₙᵈ at the 10th / 50th / 90th percentile', X+12+3*SP-8, BY+3);
   if(RHO.nBad){
-    ctx.fillStyle=THEME.faint; ctx.font=fnt(8.5);
     ctx.fillText(RHO.nBad+' parcel'+(RHO.nBad===1?'':'s')+
-      ' with no cortical signal: gap in the band, hollow node', X, BY+BH+24);
+      ' with no cortical signal: dashed, unfilled — no receptor claim, not a low one',
+      X, BY+34);
   }
 }
 
@@ -1255,7 +1640,7 @@ function drawKey(){
      w:'one line per target · width = that target’s share of the drive',
      col:PAL.transmodal, dash:[13,6], lw:2.0, sign:+1, cap:'butt'},
     {lab:'ASCENDING ERROR RETURN', dir:'low level → high level  (surface → apex)',
-     w:'the anatomy, constant · click an outer node to send one error up it',
+     w:'the anatomy, constant · click any node to release one error up it',
      col:boost(PAL.ring[0], THEME.dark), dash:[2.6,7], lw:1.6, sign:-1, cap:'round'},
     {lab:'LEVEL INVERSION', dir:'T1w/T2w disagrees with the Mesulam order',
      w:M.nInvOn+' of '+M.nCrossOn+' drawn cross-level edges — measured direction kept, drawn faint',
@@ -1273,12 +1658,13 @@ function drawKey(){
     ctx.fillStyle=THEME.dim; ctx.font=fnt(9.5,'700');
     ctx.fillText(r.lab, x+42, yy);
     ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
-    ctx.fillText(r.dir, x+188*FK, yy);
+    ctx.fillText(r.dir, x+205*FK, yy);
     ctx.fillText(r.w,   x+42, yy+10.5*FK);
   });
   ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
   ctx.fillText('node fill = Mesulam type (same hex on the brain)  ·  radius ∝ τ  ·  ' +
-               'collar = 5-HT2A  ·  outer arc = sensory stream', x, y+96*FK);
+               'border width = 5-HT2A  ·  flash = phase  ·  outer arc = sensory stream',
+               x, y+96*FK);
 }
 
 /* ---------- the headline: four numbers, not one ------------------------- */
@@ -1336,6 +1722,95 @@ function drawPrecisionRow(){
                RX, ay+43*FK);
 }
 
+/* ---------- criticality: sigma, and where Panel B breaks through --------
+   Both are readouts of things already drawn. Nothing here is fitted, there is
+   no measurement axis on a distribution, and there is no power law: the two
+   quantities are a ratio with a meaningful value at 1, and a slider position. */
+function drawCriticality(){
+  const y=208, sg = SIG ? SIG.sigma : 0;
+  ctx.textAlign='left';
+  ctx.fillStyle=THEME.fg; ctx.font=fnt(12.5,'700');
+  ctx.fillText('CRITICALITY', RX, y);
+
+  // Everything below FLOWS off the wrapped text, so a longer sentence pushes
+  // the block down instead of printing over the next thing.
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
+  let cy = wrap('Branching ratio σ — each ladder row over the row above it, averaged over ' +
+      (SIG?SIG.runs:0)+' seeds drawn from every ring, legibility caps off, seed '+
+      P.SIG_SEED+'. One click is a trajectory; this is the ensemble. The slider ' +
+      'approaches 1 from below and stops there: sustained σ > 1 is a seizure, not a ' +
+      'psychedelic.', RX, y+14*FK, RW, 11.5*FK);
+
+  const near=sg>=0.80;
+  const col = sg>1.05 ? PAL.ring[2] : (near ? PAL.transmodal : THEME.dim);
+  const ay = cy + 26*FK;
+  ctx.fillStyle=THEME.dim; ctx.font=fnt(13,'700');
+  ctx.fillText('σ', RX, ay+6*FK);
+  ctx.fillStyle=col; ctx.font=fnt(30,'700');
+  ctx.fillText(sg.toFixed(2), RX+16*FK, ay+8*FK);
+
+  // 0 .. 1.2, linear. No log anything, and the range stops where the model does.
+  const SMAX=1.2, ax=RX+104*FK, aw=RW-104*FK-8;
+  ctx.strokeStyle=THEME.edge; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax+aw,ay); ctx.stroke();
+  const sx=v=>ax+aw*Math.max(0,Math.min(1,v/SMAX));
+  ctx.strokeStyle=withA(PAL.transmodal,0.85); ctx.lineWidth=1.4;
+  ctx.beginPath(); ctx.moveTo(sx(1),ay-7); ctx.lineTo(sx(1),ay+6); ctx.stroke();
+  ctx.font=fnt(8.5); ctx.textAlign='center';
+  ctx.fillStyle=THEME.faint; ctx.fillText('0', ax, ay+15*FK);
+  ctx.fillStyle=PAL.transmodal; ctx.font=fnt(8.5,'700');
+  ctx.fillText('1 · critical', sx(1), ay+15*FK);
+  ctx.textAlign='left';
+  const mx=sx(sg);
+  ctx.fillStyle=col;
+  ctx.beginPath(); ctx.moveTo(mx,ay-1.5); ctx.lineTo(mx-5,ay-10); ctx.lineTo(mx+5,ay-10); ctx.fill();
+  ctx.fillStyle=THEME.dim; ctx.font=fnt(9.5,'700');
+  ctx.fillText(regimeOf(sg), RX+16*FK, ay+26*FK);
+
+  // percolation: the other criticality here, and the one that needs no number.
+  const py=ay+52*FK;
+  ctx.fillStyle=THEME.dim; ctx.font=fnt(10,'600');
+  const pline = wrap(PI_C===null
+      ? 'Panel B never spans a level at this node count.'
+      : 'Panel B first spans a level at π = '+PI_C+' — a percolation threshold, and the ' +
+        'reason this figure opens there rather than at π = 100.', RX, py, RW, 12.5*FK);
+  const bx=RX, bw=RW-8, by=pline+18*FK;
+  ctx.strokeStyle=THEME.edge; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+bw,by); ctx.stroke();
+  const px=v=>bx+bw*(1-v/100);                 // pi = 100 at the left
+  if(PI_C!==null){
+    ctx.fillStyle=withA(PAL.transmodal, 0.16);
+    ctx.fillRect(px(PI_C), by-5, bx+bw-px(PI_C), 10);
+    ctx.strokeStyle=PAL.transmodal; ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.moveTo(px(PI_C),by-7); ctx.lineTo(px(PI_C),by+7); ctx.stroke();
+    ctx.fillStyle=PAL.transmodal; ctx.font=fnt(8.5,'700'); ctx.textAlign='left';
+    ctx.fillText('spanning', px(PI_C)+5, by+15*FK);
+  }
+  const cur=px(Math.round(precision*100));
+  ctx.fillStyle=THEME.fg;
+  ctx.beginPath(); ctx.arc(cur, by, 3.4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(8.5); ctx.textAlign='left';
+  ctx.fillText('π 100', bx, by+15*FK);
+  ctx.textAlign='right'; ctx.fillText('0', bx+bw, by+15*FK); ctx.textAlign='left';
+
+  /* Phase coherence, as a readout of the flashing rather than a second
+     headline: four unlabelled bars, one per ring. A full bar is a ring
+     flashing as one; short bars are the desynchronised state. */
+  const cy2=by+38*FK;
+  ctx.fillStyle=THEME.faint; ctx.font=fnt(9);
+  ctx.fillText('within-ring phase coherence of the flashing  ·  full bar = one level flashing as one',
+               RX, cy2);
+  const step=(RW-8)/4, barW=step-9;
+  for(let r=0;r<4;r++){
+    const x=RX+r*step, v=FLASH.order?FLASH.order[r]:0;
+    ctx.fillStyle=withA(THEME.fg, THEME.dark?0.13:0.09);
+    ctx.fillRect(x, cy2+7*FK, barW, 5);
+    ctx.fillStyle=PAL.ring[r];
+    ctx.fillRect(x, cy2+7*FK, barW*Math.max(0,Math.min(1,v)), 5);
+  }
+  M.critBottom = cy2+16*FK;
+}
+
 /* ---------- the generation ladder ---------------------------------------
    One row per hop, one mark per node activated in that generation. The
    audience watches whether the family grows, holds, or dies out; that is the
@@ -1346,7 +1821,8 @@ function drawTriptych(y){
   ctx.textAlign='left';
   ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
   let yy = wrap('The same node clicked at three slider positions \u2014 the live slider is not ' +
-                'moved. One row per hop, one mark per parcel, coloured by its Mesulam level.',
+                'moved. One row per hop, one mark per parcel, coloured by its Mesulam level. ' +
+                'The verdict describes that run; σ and the regime describe the ensemble there.',
                 RX, y+14*FK, RW, 11.5*FK);
   const cw=RW/3, mr=3.3*FK, rowH=13*FK;
   // The three captions line up on the tallest ladder rather than on GMAX, so
@@ -1359,6 +1835,8 @@ function drawTriptych(y){
     ctx.fillText('\u03c0 = '+pane.pi, x, top);
     ctx.fillStyle=i===0?THEME.faint:PAL.transmodal; ctx.font=fnt(9.5,'700');
     ctx.fillText(pane.verdict, x+42*FK, top);
+    ctx.fillStyle=THEME.faint; ctx.font=fnt(8.5);
+    ctx.fillText('σ '+pane.sigma.toFixed(2)+' · '+pane.regime, x+42*FK, top+10*FK);
     for(let g=0; g<pane.rows.length; g++){
       const ry=top+15*FK+g*rowH;
       for(let m=0;m<pane.rows[g].length;m++){
@@ -1376,19 +1854,25 @@ function drawTriptych(y){
   });
 }
 function drawLadder(){
-  const y=252;
+  const y=Math.max(400, (M.critBottom||400)+22*FK);
   ctx.textAlign='left';
   ctx.fillStyle=THEME.fg; ctx.font=fnt(12.5,'700');
   ctx.fillText(TRIP ? 'CASCADE \u00b7 FREEZE-FRAME' : 'CASCADE', RX, y);
   if(TRIP){ drawTriptych(y); return; }
   if(!casc){
     ctx.fillStyle=THEME.faint; ctx.font=fnt(10.5);
-    wrap('Click any node on the outermost ring to release one prediction error. ' +
-         'It climbs to whichever nodes were predicting it, and each of those passes ' +
-         'on only what its own prediction failed to explain. One row per hop, ' +
-         'one mark per node.', RX, y+17*FK, RW, 13.5*FK);
+    wrap(RELEASE==='pred'
+      ? 'Click any node to release one prediction downward. It runs to whichever ' +
+        'targets that node is currently predicting, and each of those passes on its ' +
+        'own share. One row per hop, one mark per parcel.'
+      : 'Click any node to release one prediction error upward. It climbs to whichever ' +
+        'nodes were predicting it, and each of those passes on only what its own ' +
+        'prediction failed to explain. One row per hop, one mark per parcel.',
+      RX, y+17*FK, RW, 13.5*FK);
     ctx.fillStyle=THEME.faint; ctx.font=fnt(9.5);
-    ctx.fillText('At π = 100 it should die where it lands.', RX, y+80*FK);
+    ctx.fillText(RELEASE==='pred'
+      ? 'At π = 100 it stays a narrow line; as priors relax it fans out and thins.'
+      : 'At π = 100 it should die where it lands.', RX, y+66*FK);
     return;
   }
   const el=cascElapsed();
@@ -1442,7 +1926,7 @@ function drawLadder(){
 const DYN1='A teaching illustration of the REBUS mechanism, not a simulation.';
 const DYN2='Cortical 5-HT2A density is assumed to index where descending prediction precision relaxes first; everything else follows from that.';
 function drawDynamics(){
-  const x=16, y=CH-38, w=CW-32;
+  const x=16, y=CH-30, w=CW-32;
   ctx.textAlign='left';
   ctx.strokeStyle=THEME.edge; ctx.lineWidth=1;
   ctx.beginPath(); ctx.moveTo(x, y-9*FK); ctx.lineTo(x+w, y-9*FK); ctx.stroke();
@@ -1470,7 +1954,7 @@ function drawCascade(){
   const el=cascElapsed(), fade=cascFade(el);
   if(fade<=0){ casc=null; latDirty=true; return; }
   const PX=M.PX, PY=M.PY;
-  const col=boost(PAL.ring[0], THEME.dark);
+  const col=casc.dir==='pred' ? PAL.transmodal : boost(PAL.ring[0], THEME.dark);
   // A halo under the whole cascade, so the tree separates from the traffic it
   // is running through without the branches having to be thick enough to fuse.
   ctx.lineCap='round';
@@ -1527,16 +2011,32 @@ function drawCascade(){
   }
 }
 
-function wrap(text,x,y,w,lh){
-  const words=text.split(' '); let line='';
+/* Line breaking is memoised on (font, width, text). measureText is the most
+   expensive call in the file and both panels now redraw every frame to carry
+   the flashing, so re-breaking the same paragraph 60 times a second was the
+   whole frame budget. Cleared whenever the font scale changes. */
+const _wrapMemo=new Map();
+function wrapLines(c,text,w){
+  const k=c.font+'|'+w.toFixed(1)+'|'+text;
+  let v=_wrapMemo.get(k);
+  if(v) return v;
+  const words=text.split(' '), out=[]; let line='';
   for(const wd of words){
     const test=line?line+' '+wd:wd;
-    if(ctx.measureText(test).width>w && line){ ctx.fillText(line,x,y); y+=lh; line=wd; }
+    if(c.measureText(test).width>w && line){ out.push(line); line=wd; }
     else line=test;
   }
-  if(line){ ctx.fillText(line,x,y); return y; }
-  return y-lh;
+  if(line) out.push(line);
+  if(_wrapMemo.size>400) _wrapMemo.clear();
+  _wrapMemo.set(k,out);
+  return out;
 }
+function wrapOn(c,text,x,y,w,lh){
+  const lines=wrapLines(c,text,w);
+  for(let i=0;i<lines.length;i++) c.fillText(lines[i], x, y+i*lh);
+  return y+(lines.length-1)*lh;
+}
+const wrap=(text,x,y,w,lh)=>wrapOn(ctx,text,x,y,w,lh);
 
 /* ======================================================================== *
  *  PANEL B -- the same parcels as a lattice.
@@ -1546,7 +2046,7 @@ function wrap(text,x,y,w,lh){
  *  geometry. That makes it the criticality pane. The shared slider is the
  *  whole move -- one knob changes a cortical map and a lattice at once.
  * ======================================================================== */
-const LW=620, LH=300;
+// LW / LH are mirrored out of P.G by applyGeom().
 let LGEO=null;
 function fitLat(){
   const g=fitOne(lcv, lctx, LW, LH);
@@ -1557,83 +2057,122 @@ function drawLattice(ts){
   if(!S.lat) return;
   lctx.save();
   lctx.setTransform(1,0,0,1,0,0); lctx.clearRect(0,0,lcv.width,lcv.height); lctx.restore();
-  const L=S.lat, C=P.COLS;
-  const x0=82, y0=34, gw=LW-x0-16, gh=LH-y0-62;
-  const cw=gw/C, band=gh/4;
-  const pad=Math.min(1.8, cw*0.14);                 // gap between columns
-  // Layers are drawn apart, not merely stacked: a patch that spans two rows
-  // has to visibly bridge the gap, so "activity crossed a level" is a thing
-  // you can see rather than an adjacency you have to take on trust.
-  const chh=Math.min(band-8, cw*2.4);
-  // row 0 = idiotypic is drawn at the BOTTOM: the surface is at the bottom and
-  // the apex is at the top, the same orientation the ring uses radially.
-  const cellX=c=>x0+c*cw, cellY=r=>y0+(3-r)*band+(band-chh)/2;
+  const L=S.lat, C=M.cols;
+  const x0=96, y0=28, gw=LW-x0-18, gh=LH-y0-104;
+  const band=gh/4, cw=gw/C;
+  // Nodes sit low in their band so the within-level arcs have somewhere to go.
+  // row 0 = idiotypic is at the BOTTOM: surface below, apex above, the same
+  // orientation the ring uses radially.
+  const cellX=c=>x0+(c+0.5)*cw;
+  const cellY=r=>y0+(3-r)*band+band*0.66;
+  const nr=Math.max(3.2, Math.min(cw*0.30, band*0.17, 11));
+  const arcH=Math.min(band*0.40, cw*1.5);
 
   lctx.textAlign='left';
   lctx.fillStyle=THEME.faint; lctx.font=fnt(9,'700');
-  lctx.fillText('SURFACE → APEX, BOTTOM TO TOP · COLUMNS FOLLOW THE GRADIENT', x0, 15);
+  lctx.fillText('SURFACE → APEX, BOTTOM TO TOP · COLUMNS FOLLOW THE GRADIENT', x0, 14);
 
+  const open=w=>w>=P.BONDT;
+  const arc=(c1,c2,r,h)=>{
+    const x1=cellX(c1), x2=cellX(c2), y=cellY(r);
+    lctx.moveTo(x1,y); lctx.quadraticCurveTo((x1+x2)/2, y-h*2, x2, y);
+  };
+  const line=(c1,r1,c2,r2)=>{
+    lctx.moveTo(cellX(c1),cellY(r1)); lctx.lineTo(cellX(c2),cellY(r2));
+  };
+
+  /* ---- layer 1: the STRUCTURE, always drawn ------------------------- *
+   * The wiring does not change with the slider; only which of it conducts
+   * does. Drawing the full set faintly at all times separates structure from
+   * state, and gives the eye something that holds still while the nodes
+   * flash. It is also the same rule Panel A follows: nothing is culled.   */
+  lctx.strokeStyle=THEME.scaffold; lctx.lineWidth=1;
+  lctx.beginPath();
+  for(let r=0;r<4;r++) for(let c=0;c<C;c++){
+    if(c<C-1) line(c,r,c+1,r);
+    if(c<C-2) arc(c,c+2,r,arcH);
+  }
+  for(let r=0;r<3;r++) for(const e of L.vE[r]) line(e.c,r,e.c2,r+1);
+  lctx.stroke();
+
+  /* ---- layer 2: the bonds that are actually OPEN --------------------- */
+  lctx.lineCap='round';
+  for(let r=0;r<4;r++){
+    lctx.strokeStyle=withA(PAL.ring[r], 0.50);
+    lctx.lineWidth=1.5; lctx.beginPath();
+    for(let c=0;c<C-1;c++) if(open(L.hb[r][c])) line(c,r,c+1,r);
+    lctx.stroke();
+    lctx.strokeStyle=withA(PAL.ring[r], 0.34);
+    lctx.lineWidth=1.1; lctx.beginPath();
+    for(let c=0;c<C-2;c++) if(open(L.ab[r][c])) arc(c,c+2,r,arcH);
+    lctx.stroke();
+  }
+  lctx.strokeStyle=withA(PAL.transmodal, 0.80); lctx.lineWidth=1.9;
+  lctx.beginPath();
+  for(let r=0;r<3;r++) for(const e of L.vE[r]) if(open(e.w)) line(e.c,r,e.c2,r+1);
+  lctx.stroke();
+  lctx.lineCap='butt';
+
+  /* ---- layer 3: a patch that spans levels, as one object ------------- */
+  for(const comp of L.comp){
+    if(comp.rows<2) continue;
+    const inC=new Set(comp.cells.map(([r,c])=>r*C+c));
+    lctx.strokeStyle=withA(PAL.transmodal, 0.95); lctx.lineWidth=3.0;
+    lctx.lineCap='round'; lctx.beginPath();
+    for(let r=0;r<3;r++) for(const e of L.vE[r]){
+      if(!open(e.w)) continue;
+      if(inC.has(r*C+e.c) && inC.has((r+1)*C+e.c2)) line(e.c,r,e.c2,r+1);
+    }
+    lctx.stroke(); lctx.lineCap='butt';
+  }
+
+  /* ---- layer 4: the nodes -------------------------------------------- */
   for(let r=3;r>=0;r--){
     lctx.fillStyle = hoverRing===r ? THEME.fg : THEME.faint;
     lctx.font=fnt(9.5, hoverRing===r?'700':'600');
     lctx.textAlign='right';
-    lctx.fillText(PAL.ringNames[r], x0-8, cellY(r)+chh/2+3);
+    lctx.fillText(PAL.ringNames[r], x0-12, cellY(r)+3);
     lctx.textAlign='left';
     for(let c=0;c<C;c++){
       const i=M.grid[r][c], x=cellX(c), y=cellY(r);
-      const on=L.on[r][c];
-      if(on){
-        lctx.fillStyle=withA(PAL.ring[r], 0.32+0.55*clamp01(L.A[r][c]));
-        lctx.fillRect(x+pad, y, cw-2*pad, chh);
+      const noRho = i>=0 && !M.nodes[i].rhoOk;
+      if(L.on[r][c]){
+        lctx.fillStyle=withA(PAL.ring[r], 0.40+0.55*clamp01(L.A[r][c]));
+        lctx.beginPath(); lctx.arc(x,y,nr,0,Math.PI*2); lctx.fill();
       } else {
-        lctx.strokeStyle=withA(PAL.ring[r], 0.26); lctx.lineWidth=1;
-        lctx.strokeRect(x+pad+.5, y+.5, cw-2*pad-1, chh-1);
+        lctx.fillStyle=THEME.panel;
+        lctx.beginPath(); lctx.arc(x,y,nr,0,Math.PI*2); lctx.fill();
+        lctx.strokeStyle=withA(PAL.ring[r], 0.45); lctx.lineWidth=1.2;
+        lctx.beginPath(); lctx.arc(x,y,nr,0,Math.PI*2); lctx.stroke();
       }
-      if(i>=0 && !M.nodes[i].rhoOk){          // no PET signal here
-        lctx.strokeStyle=withA(THEME.faint,0.85); lctx.lineWidth=1;
+      // the same flashing phases as Panel A, on the same parcels
+      if(SHOW.flash && i>=0 && FLASH.pulse){
+        const u=FLASH.pulse[i];
+        if(u>=P.FLASH_MIN){
+          const k=(u-P.FLASH_MIN)/(1-P.FLASH_MIN);
+          lctx.strokeStyle=withA(boost(PAL.ring[r],THEME.dark), 0.55*k);
+          lctx.lineWidth=1.3+2.0*k;
+          lctx.beginPath(); lctx.arc(x,y,nr+3+3.5*k,0,Math.PI*2); lctx.stroke();
+        }
+      }
+      if(noRho){                              // no PET signal here
+        lctx.strokeStyle=withA(THEME.faint,0.95); lctx.lineWidth=1.2;
         lctx.beginPath();
-        lctx.moveTo(x+pad+1.5,y+1.5); lctx.lineTo(x+cw-pad-1.5,y+chh-1.5);
+        lctx.moveTo(x-nr*0.75,y+nr*0.75); lctx.lineTo(x+nr*0.75,y-nr*0.75);
         lctx.stroke();
       }
+      if(hoverNode && i===hoverNode.i){
+        lctx.strokeStyle=THEME.fg; lctx.lineWidth=1.6;
+        lctx.beginPath(); lctx.arc(x,y,nr+4.5,0,Math.PI*2); lctx.stroke();
+      }
+      if(M.seedSet.has(c)){        // the probe: same column in every row
+        lctx.fillStyle=THEME.faint;
+        lctx.beginPath(); lctx.arc(x, y+nr+6, 1.5, 0, Math.PI*2); lctx.fill();
+      }
     }
   }
-  // Outline each patch as one object, so a spanning patch reads as a single
-  // thing crossing a level boundary rather than as cells that happen to align.
-  // the bonds themselves: a short tie drawn in the gap wherever a coupling is
-  // open. The vertical ties are the ones that appear as the slider falls.
-  lctx.lineWidth=1.4;
-  for(let r=0;r<4;r++) for(let c=0;c<C;c++){
-    if(c<C-1 && L.hb[r][c]>=P.BONDT){
-      const y=cellY(r)+chh/2;
-      lctx.strokeStyle=withA(PAL.ring[r], 0.35);
-      lctx.beginPath(); lctx.moveTo(cellX(c)+cw-pad, y); lctx.lineTo(cellX(c+1)+pad, y); lctx.stroke();
-    }
-    if(r<3 && L.vb[r][c]>=P.BONDT){
-      const x=cellX(c)+cw/2;
-      lctx.strokeStyle=withA(PAL.transmodal, 0.62);
-      lctx.beginPath(); lctx.moveTo(x, cellY(r)); lctx.lineTo(x, cellY(r+1)+chh); lctx.stroke();
-    }
-  }
-  for(const comp of L.comp){
-    if(comp.n<2) continue;
-    const span=comp.rows>1;
-    lctx.strokeStyle=withA(span?PAL.transmodal:THEME.fg, span?0.95:0.32);
-    lctx.lineWidth=span?2.0:1.0;
-    lctx.beginPath();
-    for(const [r,c] of comp.cells){
-      const x=cellX(c)+pad, y=cellY(r), w=cw-2*pad;
-      const has=(r2,c2)=>r2>=0&&r2<4&&c2>=0&&c2<C&&L.lab[r2][c2]===comp.id;
-      if(!has(r,c-1)){ lctx.moveTo(x,y); lctx.lineTo(x,y+chh); }
-      if(!has(r,c+1)){ lctx.moveTo(x+w,y); lctx.lineTo(x+w,y+chh); }
-      lctx.moveTo(x,y); lctx.lineTo(x+w,y);
-      lctx.moveTo(x,y+chh); lctx.lineTo(x+w,y+chh);
-      // a patch that bridges two layers gets the bridge drawn in
-      if(has(r+1,c)){ const xm=x+w/2;
-        lctx.moveTo(xm, cellY(r+1)+chh); lctx.lineTo(xm, y); }
-    }
-    lctx.stroke();
-  }
-  // a running cascade lights the same parcels here, in the other geometry
+
+  // a running release lights the same parcels here, in the other geometry
   if(casc){
     const el=cascElapsed(), fade=cascFade(el);
     const cellOf=new Map();
@@ -1641,22 +2180,23 @@ function drawLattice(ts){
     for(let g=0; g<casc.gens.length; g++){
       const t=clamp01((el-g*P.GEN_MS)/(P.GEN_MS*0.8));
       if(t<=0) break;
-      for(const s of casc.gens[g]){
-        let hit=cellOf.get(s.node);
-        if(!hit){                       // this parcel is not one of the sampled cells
-          const n=M.nodes[s.node], row=M.byRing[n.ring];
+      for(const sN of casc.gens[g]){
+        let hit=cellOf.get(sN.node);
+        if(!hit){                       // this parcel is not one of the sampled balls
+          const n=M.nodes[sN.node], row=M.byRing[n.ring];
           const k=row.indexOf(n);
           hit=[n.ring, Math.min(C-1, Math.round((k+0.5)*C/Math.max(1,row.length)-0.5))];
         }
-        const [r,c]=hit, x=cellX(c), y=cellY(r);
-        lctx.strokeStyle=withA(boost(PAL.ring[0],THEME.dark), 0.95*fade*t);
+        const [r,c]=hit;
+        lctx.strokeStyle=withA(casc.col, 0.95*fade*t);
         lctx.lineWidth=2.2;
-        lctx.strokeRect(x+pad-1.5, y-1.5, cw-2*pad+3, chh+3);
+        lctx.beginPath(); lctx.arc(cellX(c),cellY(r),nr+6,0,Math.PI*2); lctx.stroke();
       }
     }
   }
+
   // the reading, in words, under the lattice
-  const by=y0+gh+18;
+  const by=y0+gh+30;
   lctx.fillStyle=THEME.dim; lctx.font=fnt(10,'600');
   const spanning=L.comp.filter(c=>c.rows>1).length;
   lctx.fillText(L.spanRows<=1
@@ -1665,13 +2205,17 @@ function drawLattice(ts){
         ' '+L.spanRows+' levels — the largest covers '+L.biggest+' parcels.',
     x0, by);
   lctx.fillStyle=THEME.faint; lctx.font=fnt(9);
-  lctx.fillText(L.vOpen+' of '+L.vTot+' across-level bonds are open (orange). Within-level ' +
-    'coupling is constant; across levels it is (1 − precision index) of the upper cell, ' +
-    'so at π = 100 it is exactly zero.', x0, by+13);
-  lctx.fillText('One cell = one parcel. Seeds are a fixed comb, the same in every row, every ' +
-    'time — nothing here is sampled.', x0, by+25);
+  const tw=LW-x0-18;
+  let ly = wrapOn(lctx, L.vOpen+' of '+L.vTot+' across-level bonds open (orange). Within-level ' +
+    'coupling is constant; across levels it is (1 − precision index) of the upper cell, so at ' +
+    'π = 100 it is exactly zero. The full wiring is drawn at all times — the slider changes ' +
+    'which of it conducts, not which of it exists.', x0, by+14, tw, 11.5);
+  wrapOn(lctx, 'Probe ▾ '+M.seedCols.length+' per row, in the same columns in every row. Every ' +
+    'ball is one real parcel and this set is a subset of Panel A’s: '+C+' of '+
+    M.rowN.join('/')+' per level, evenly spaced along the gradient — so the levels are sampled ' +
+    'at different rates.', x0, ly+13, tw, 11.5);
   latstat.textContent = Math.round(100*L.frac)+'% active · tallest patch '+L.spanRows+
-    ' of 4 · '+L.vOpen+'/'+L.vTot+' level bonds open';
+    ' of 4 · '+L.vOpen+'/'+L.vTot+' level bonds open · '+C+' per level';
 }
 
 /* ---------- interaction ------------------------------------------------- */
@@ -1698,7 +2242,7 @@ cv.addEventListener('mousemove', ev=>{
     hoverRing=-1;
     for(let r=0;r<4;r++) if(Math.abs(rr-RADII[r]*k)<21) hoverRing=r;
   }
-  cv.style.cursor = (best && best.ring===0) ? 'pointer' : 'default';
+  cv.style.cursor = best ? 'pointer' : 'default';
   if(best) showTip(best, ev); else tip.style.opacity=0;
   if(prevN!==hoverNode||prevR!==hoverRing){ dirty=true; latDirty=true; syncBrain(); }
 });
@@ -1720,19 +2264,24 @@ cv.addEventListener('click', ev=>{
     hoverNode=n; hoverRing=n.ring; dirty=true; syncBrain();
   }
   showTip(n, ev);
-  if(n.ring!==0) return;
+  // Any node, not only the surface. The ring-0 gate was a code restriction,
+  // never a finding, and it hid the case this receptor map makes most
+  // interesting: heteromodal cortex, where the mean 5-HT2A percentile peaks.
   fireCascade(n);
 });
 function fireCascade(n){
   tripSeed=n.i;
   if(TRIP){ TRIP=tripCompute(n.i); dirty=true; return; }   // freeze-frame is up
-  const tr=traceCascade(n.i);
+  const tr=traceRelease(n.i);
+  const pred=tr.dir==='pred';
   const sizes=tr.gens.map(g=>g.length);
   const grew=sizes.length>1 && sizes[sizes.length-1]>=sizes[sizes.length-2];
-  tr.head=n.p.hemi+'_'+n.p.name+'  ·  ρ '+ordinal(Math.round(n.rk*100))+
-          ' pct  ·  at π = '+Math.round(precision*100);
+  tr.head=(pred?'prediction ↓ from ':'error ↑ from ')+n.p.hemi+'_'+n.p.name+
+          '  ·  ρ '+(n.rhoOk?ordinal(Math.round(n.rk*100))+' pct':'no signal')+
+          '  ·  at π = '+Math.round(precision*100);
   tr.caption = tr.gens.length===1
-    ? 'Explained away where it landed — no hop survived.'
+    ? (pred ? 'Emitted and went nowhere — no branch cleared the threshold.'
+            : 'Explained away where it landed — no hop survived.')
     : tr.total+' parcels over '+(tr.gens.length-1)+' hop'+(tr.gens.length===2?'':'s')+
       ' · reached '+PAL.ringNames[tr.deepest]+
       (tr.total>=P.NMAX ? ' · held at the drawing cap' : (grew?' · still growing':' · tapered out'));
@@ -1772,7 +2321,7 @@ const slider=document.getElementById('prec'), precv=document.getElementById('pre
 function setPrec(v){
   v=Math.max(0,Math.min(100,v));
   slider.value=v; precision=v/100; precv.textContent=v;
-  reprecision(); reciprocal(); relattice(); regeom();
+  reprecision(); reciprocal(); relattice(); SIG=sigmaEnsemble(); regeom();
 }
 slider.addEventListener('input',()=>setPrec(+slider.value));
 window.addEventListener('keydown',ev=>{
@@ -1792,7 +2341,7 @@ function syncChip(id,on){
   const b=document.getElementById(id);
   b.setAttribute('aria-pressed',on); b.classList.toggle('on',on);
 }
-[['cPred','pred'],['cErr','err'],['cInv','hideInv'],['cCollar','collar']]
+[['cPred','pred'],['cErr','err'],['cInv','hideInv'],['cRho','rho'],['cFlash','flash']]
 .forEach(([id,key])=>{
   document.getElementById(id).addEventListener('click',()=>{
     SHOW[key]=!SHOW[key]; syncChip(id, SHOW[key]); regeom();
@@ -1835,7 +2384,7 @@ themeBtn.addEventListener('click',function(){
   const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.documentElement.setAttribute('data-theme', dark?'light':'dark');
   this.textContent = dark?'Dark':'Light';
-  _boostMemo.clear(); _desatMemo.clear(); _rhoMemo.clear();
+  _boostMemo.clear(); _desatMemo.clear(); _rhoMemo.clear(); _wrapMemo.clear();
   readTheme(); regeom();
 });
 /* Presentation mode. Light, high contrast, bigger type on the canvas as well
@@ -1858,7 +2407,7 @@ presBtn.addEventListener('click',function(){
     themeBtn.textContent = themeBefore==='dark' ? 'Light' : 'Dark';
     FK=1;
   }
-  _boostMemo.clear(); _desatMemo.clear(); _rhoMemo.clear();
+  _boostMemo.clear(); _desatMemo.clear(); _rhoMemo.clear(); _wrapMemo.clear();
   readTheme();
   requestAnimationFrame(()=>{ fit(); latDirty=true; });
 });
@@ -1961,10 +2510,9 @@ function syncBrain(){
       hoverRing+' in Panel A, row '+hoverRing+' in Panel B, '+RING_N[hoverRing]+
       ' of 360 parcels, lit on the surface.';
   } else {
-    blabel.innerHTML='Cortex by <b>Mesulam cortical type</b> — the same four colours Panels A and B ' +
-      'use, so a node, a lattice cell and its parcel are the same hex. ' +
+    blabel.innerHTML='<b>Mesulam cortical type</b> — same four colours as Panels A and B: ' +
       [0,1,2,3].map(r=>'<b style="color:'+PAL.ring[r]+'">'+PAL.ringNames[r]+'</b> '+RING_N[r]).join(' · ') +
-      '. Hover a ring or a node in Panel A to light it up here.';
+      '. Hover Panel A to light a ring or a parcel here.';
   }
 }
 (function(){
@@ -2041,6 +2589,15 @@ const INPUTS = [
   document.getElementById('label2').innerHTML=html;
 })();
 
+(function ledgerWiring(){
+  const lg=document.getElementById('ledger');
+  const show=on=>lg.classList.toggle('on',on);
+  document.getElementById('src').addEventListener('click',()=>show(true));
+  document.getElementById('lgx').addEventListener('click',()=>show(false));
+  lg.addEventListener('click',ev=>{ if(ev.target===lg) show(false); });
+  window.addEventListener('keydown',ev=>{ if(ev.key==='Escape') show(false); });
+})();
+
 /* ---------- load-time checks -------------------------------------------
    Every number this figure shows should be checkable without reading the
    source. These print to the console at boot and are re-runnable from
@@ -2105,6 +2662,49 @@ function censusWedge(){
     ' of them somatomotor — ring 0 is a sensorimotor shell, not a sensory input shell');
   return {wedge:w.length, byClass, ring0:r0.length, ring0Motor:mot.length};
 }
+/* Panel B may never repeat a parcel across columns. COLS = 36 against a row
+   of 17 was doing exactly that, silently, at every node count below 360. */
+function assertCols(){
+  const C=M.cols, bad=[];
+  for(let r=0;r<4;r++){
+    const seen=new Set();
+    for(let c=0;c<C;c++){
+      const i=M.grid[r][c];
+      if(i<0) continue;
+      if(seen.has(i)) bad.push(PAL.ringNames[r]+' col '+c+' repeats '+M.nodes[i].p.id);
+      seen.add(i);
+    }
+  }
+  if(bad.length) console.error('[cols] '+bad.length+' repeated cells', bad.slice(0,8));
+  else console.info('[cols] ok — '+C+' distinct parcels per level (smallest row holds '+
+                    M.minRow+'), rows: '+M.rowN.join('/'));
+  return {cols:C, minRow:M.minRow, rowN:M.rowN, bad};
+}
+/* Panel B's parcels must be a subset of Panel A's, or "the same parcels in two
+   geometries" is not true and the hover, the echo and the cascade lighting are
+   all pointing at different things. */
+function assertSubset(){
+  const inA=new Set(M.nodes.map(n=>n.i)), bad=[];
+  for(let r=0;r<4;r++) for(const i of M.grid[r]) if(i>=0 && !inA.has(i)) bad.push(i);
+  if(bad.length) console.error('[subset] '+bad.length+' Panel B cells are not Panel A nodes');
+  else console.info('[subset] ok — every Panel B ball is a Panel A node');
+  return {bad:bad.length};
+}
+/* R7: no number printed on this figure may come from a single random draw.
+   sigma is the only simulated quantity on the page, so this checks that it is
+   an ensemble, that it is reproducible from its stated seed, and that the
+   legibility caps are not what is being measured. */
+function assertEnsemble(){
+  const a=sigmaEnsemble(), b=sigmaEnsemble();
+  const stable=Math.abs(a.sigma-b.sigma)<1e-12;
+  const capped=P.SIG_GMAX<=P.GMAX || P.SIG_NMAX<=P.NMAX;
+  if(!stable) console.error('[ensemble] sigma is not reproducible from seed '+P.SIG_SEED);
+  else if(capped) console.error('[ensemble] the statistic is running inside the drawing caps');
+  else console.info('[ensemble] ok — sigma '+a.sigma.toFixed(3)+' over '+a.runs+
+    ' seeds, reproducible from seed '+P.SIG_SEED+', drawing caps off ('+
+    a.died+' died out, '+a.spread+' spread)');
+  return a;
+}
 /* Where the receptor map actually peaks. Worth printing, because it is not
    where the usual verbal summary of this literature puts it. */
 function censusRho(){
@@ -2133,17 +2733,37 @@ if(!HAS_LEVEL){
   w.textContent='LEVEL IS A PLACEHOLDER — ring + jitter';
 }
 
+/* Two controls, not one, because Panel A and Panel B want opposite densities.
+   A is a topology picture and density is part of its message; B has to be
+   countable. B always draws a SUBSET of A -- build() clamps COLS to the
+   smallest row, so no ball is ever a repeat of another. */
 const nsel=document.getElementById('ncount');
-[140,200,260].forEach(v=>{
-  const o=document.createElement('option'); o.value=v; o.textContent=v+' nodes';
+[140,200,260,360].forEach(v=>{
+  const o=document.createElement('option'); o.value=v;
+  o.textContent=(v===360?'360 nodes (all)':v+' nodes');
   if(v===260) o.selected=true; nsel.appendChild(o);
 });
-nsel.addEventListener('change',()=>{
+const csel=document.getElementById('ccols');
+[8,12,16].forEach(v=>{
+  const o=document.createElement('option'); o.value=v; o.textContent=v+' per level';
+  if(v===P.COLS) o.selected=true; csel.appendChild(o);
+});
+function rebuild(){
   casc=null; TRIP=null; tripSeed=null;
   tripBtn.setAttribute('aria-pressed',false); tripBtn.classList.remove('on');
-  M=build(+nsel.value);
-  reprecision(); reciprocal(); relattice(); fit(); syncBrain();
-  assertDirection();
+  M=build(+nsel.value); initFlash();
+  reprecision(); reciprocal(); relattice();
+  PI_C=percolationPi(); SIG=sigmaEnsemble();
+  fit(); syncBrain();
+  assertDirection(); assertCols(); assertSubset();
+  if(+csel.value!==M.cols) csel.value=String(M.cols);
+}
+nsel.addEventListener('change',rebuild);
+csel.addEventListener('change',()=>{ P.COLS=+csel.value; rebuild(); });
+document.getElementById('release').addEventListener('change',function(){
+  RELEASE=this.value; casc=null; TRIP=null;
+  tripBtn.setAttribute('aria-pressed',false); tripBtn.classList.remove('on');
+  SIG=sigmaEnsemble(); dirty=true; latDirty=true;
 });
 
 if(!document.documentElement.getAttribute('data-theme')){
@@ -2154,19 +2774,38 @@ if(!document.documentElement.getAttribute('data-theme')){
 themeBtn.textContent =
   document.documentElement.getAttribute('data-theme')==='dark' ? 'Light' : 'Dark';
 
-M=build(260);
-readTheme(); reprecision(); reciprocal(); relattice(); fit(); syncBrain(); setPrec(100);
+M=build(260); initFlash();
+readTheme(); reprecision(); reciprocal(); relattice(); fit(); syncBrain();
+/* The figure opens AT the transition, not above it. At pi = 100 Panel B shows
+   0 of N across-level bonds open -- the most inert state it can produce, and a
+   poor first frame for a figure whose subject is a transition. */
+PI_C=percolationPi();
+setPrec(PI_C===null ? 65 : PI_C);
 assertDirection();
+assertCols();
+assertSubset();
+assertEnsemble();
 censusWedge();
 censusRho();
 
 window.FIG={
   P, setPrec, SHOW, triptych:()=>TRIP,
   redraw:(t)=>draw(t||performance.now()),
-  assertDirection, assertProliferation, censusWedge, censusRho,
-  fire:(k)=>{ const r0=M.byRing[0]; fireCascade(r0[(k||0)%r0.length]); return casc; },
+  drawLat:(t)=>drawLattice(t||performance.now()),
+  assertDirection, assertProliferation, assertCols, assertSubset, assertEnsemble,
+  censusWedge, censusRho,
+  sigma:()=>SIG, percolation:()=>PI_C,
+  sigmaEnsemble, percolationPi,
+  release:(m)=>{ RELEASE=m; document.getElementById('release').value=m;
+                 SIG=sigmaEnsemble(); dirty=true; return RELEASE; },
+  /* Live geometry sweep. P.G is the source of truth; this is what makes the
+     §8 claim that every constant is sweepable actually true of the layout. */
+  setGeom:(g)=>{ Object.assign(P.G, g||{}); applyGeom(); fit(); dirty=true;
+                 latDirty=true; return P.G; },
+  flash:()=>FLASH,
+  fire:(k)=>{ const all=M.nodes; fireCascade(all[(k||0)%all.length]); return casc; },
   pick:()=>PICK, rho:()=>RHO,
-  state:()=>({precision, M, S, HAS_LEVEL, HAS_TAU, TAU_SRC}),
+  state:()=>({precision, M, S, PI_C, SIG, RELEASE, HAS_LEVEL, HAS_TAU, TAU_SRC}),
   /* The ladder across the whole slider, as a table: how many nodes each hop
      activates at each precision. This is what "hand-tune the recruitment rule
      so the sweep shows a taper-to-hold transition" was tuned against. */
@@ -2186,8 +2825,10 @@ window.FIG={
 };
 document.getElementById('motion').setAttribute('aria-pressed', motion);
 window.addEventListener('resize',fit);
+/* Panel B now carries the same flashing phases as Panel A, so it has to be
+   redrawn on the same cadence rather than only when its model changes. */
 (function loop(ts){
-  if(motion || dirty || casc){ dirty=false; draw(ts||0); if(casc) latDirty=true; }
+  if(motion || dirty || casc){ dirty=false; draw(ts||0); if(SHOW.flash||casc) latDirty=true; }
   if(latDirty){ latDirty=false; drawLattice(ts||0); }
   requestAnimationFrame(loop);
 })();
